@@ -1,0 +1,1318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JARVIS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --black: #000000;
+    --black2: #0a0a0a;
+    --black3: #111111;
+    --black4: #1a1a1a;
+    --amber: #d4820a;
+    --amber-bright: #f5a623;
+    --amber-dim: #7a4a05;
+    --amber-glow: rgba(212,130,10,0.12);
+    --amber-glow-strong: rgba(212,130,10,0.25);
+    --text: #e8d5a0;
+    --text-dim: #8a7040;
+    --text-faint: #3a2e18;
+    --border: rgba(212,130,10,0.2);
+    --border-bright: rgba(212,130,10,0.5);
+    --font-mono: 'Share Tech Mono', monospace;
+    --font-ui: 'Rajdhani', sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body {
+    background: var(--black);
+    color: var(--text);
+    font-family: var(--font-ui);
+    height: 100%;
+    overflow-x: hidden;
+  }
+
+  /* BOOT SCREEN */
+  #boot {
+    position: fixed;
+    inset: 0;
+    background: #000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    font-family: var(--font-mono);
+  }
+  #boot.hidden { display: none; }
+
+  .boot-logo {
+    font-size: 72px;
+    font-weight: 600;
+    font-family: var(--font-ui);
+    color: var(--amber-bright);
+    letter-spacing: 20px;
+    margin-bottom: 8px;
+    animation: pulse 2s ease-in-out infinite;
+  }
+  .boot-sub {
+    font-size: 11px;
+    letter-spacing: 6px;
+    color: var(--text-dim);
+    margin-bottom: 48px;
+  }
+  .boot-lines {
+    width: 320px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 32px;
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+  .boot-line {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .boot-bar-outer {
+    width: 160px;
+    height: 2px;
+    background: var(--black4);
+    border: 1px solid var(--border);
+  }
+  .boot-bar-inner {
+    height: 100%;
+    background: var(--amber);
+    width: 0%;
+    transition: width 0.4s ease;
+  }
+  .boot-tap {
+    font-size: 12px;
+    letter-spacing: 4px;
+    color: var(--amber-dim);
+    cursor: pointer;
+    border: 1px solid var(--border);
+    padding: 10px 28px;
+    transition: all 0.3s;
+    animation: blink 1.5s step-end infinite;
+  }
+  .boot-tap:hover { background: var(--amber-glow); color: var(--amber-bright); border-color: var(--amber); }
+
+  /* SCAN LINE EFFECT */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 4px);
+    pointer-events: none;
+    z-index: 999;
+  }
+
+  /* MAIN LAYOUT */
+  #app {
+    display: none;
+    flex-direction: column;
+    min-height: 100vh;
+    padding: 0;
+  }
+  #app.visible { display: flex; }
+
+  /* TOP BAR */
+  #topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 24px;
+    border-bottom: 1px solid var(--border);
+    background: var(--black2);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .tb-logo {
+    font-family: var(--font-ui);
+    font-size: 22px;
+    font-weight: 600;
+    letter-spacing: 8px;
+    color: var(--amber-bright);
+  }
+  .tb-center {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+  }
+  .tb-greeting {
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 2px;
+    color: var(--text);
+  }
+  .tb-time {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    letter-spacing: 1px;
+  }
+  .tb-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .status-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--amber);
+    animation: pulse 2s ease-in-out infinite;
+  }
+  .status-label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: var(--text-dim);
+  }
+  .tb-settings-btn {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    font-family: var(--font-ui);
+    font-size: 12px;
+    letter-spacing: 1px;
+    padding: 5px 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .tb-settings-btn:hover { border-color: var(--amber); color: var(--amber-bright); background: var(--amber-glow); }
+
+  /* STAT TILES */
+  #stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1px;
+    background: var(--border);
+    border-bottom: 1px solid var(--border);
+  }
+  .stat-tile {
+    background: var(--black2);
+    padding: 14px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .stat-label {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    letter-spacing: 3px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+  }
+  .stat-value {
+    font-family: var(--font-mono);
+    font-size: 22px;
+    color: var(--amber-bright);
+    line-height: 1;
+  }
+  .stat-sub {
+    font-size: 10px;
+    color: var(--text-faint);
+    letter-spacing: 1px;
+  }
+
+  /* MAIN GRID */
+  #main {
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    gap: 0;
+    flex: 1;
+  }
+
+  /* LEFT PANEL */
+  #left {
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid var(--border);
+  }
+
+  /* COMMAND CENTER */
+  #command-area {
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--border);
+  }
+  .cmd-label {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    letter-spacing: 4px;
+    color: var(--text-dim);
+    margin-bottom: 10px;
+  }
+  .cmd-input-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  #cmd-input {
+    flex: 1;
+    background: var(--black3);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 13px;
+    padding: 10px 14px;
+    outline: none;
+    transition: border-color 0.2s;
+    letter-spacing: 0.5px;
+  }
+  #cmd-input:focus { border-color: var(--amber); }
+  #cmd-input::placeholder { color: var(--text-faint); }
+  .cmd-btn {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 1px;
+    padding: 10px 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+  .cmd-btn:hover { border-color: var(--amber); color: var(--amber-bright); background: var(--amber-glow); }
+  .cmd-btn.active { background: var(--amber-glow-strong); border-color: var(--amber-bright); color: var(--amber-bright); }
+  #mic-btn.listening { border-color: #e24b4a; color: #e24b4a; background: rgba(226,75,74,0.1); animation: pulse 1s infinite; }
+
+  /* QUICK ACTIONS */
+  .quick-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 10px;
+  }
+  .qa-chip {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 1px;
+    color: var(--text-dim);
+    border: 1px solid var(--text-faint);
+    padding: 4px 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: none;
+  }
+  .qa-chip:hover { border-color: var(--amber-dim); color: var(--amber); background: var(--amber-glow); }
+
+  /* RESPONSE AREA */
+  #response-area {
+    flex: 1;
+    padding: 20px 24px;
+    overflow-y: auto;
+    min-height: 200px;
+  }
+  .resp-line {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 16px;
+    animation: fadeIn 0.3s ease;
+  }
+  .resp-who {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 2px;
+    min-width: 64px;
+    padding-top: 2px;
+  }
+  .resp-who.user { color: var(--text-dim); }
+  .resp-who.jarvis { color: var(--amber); }
+  .resp-text {
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--text);
+    font-family: var(--font-ui);
+    letter-spacing: 0.3px;
+    flex: 1;
+  }
+  .resp-text.jarvis-text { color: var(--text); }
+  .resp-text.thinking { color: var(--text-dim); font-family: var(--font-mono); font-size: 12px; }
+
+  /* DATA PANELS */
+  #panels {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .panel {
+    border-bottom: 1px solid var(--border);
+    background: var(--black2);
+  }
+  .panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 20px;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .panel-header:hover { background: var(--amber-glow); }
+  .panel-title {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 3px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+  }
+  .panel-count {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--amber);
+    background: var(--amber-glow);
+    border: 1px solid var(--border);
+    padding: 2px 8px;
+  }
+  .panel-body {
+    padding: 0 20px 12px;
+    display: none;
+  }
+  .panel-body.open { display: block; }
+
+  /* ITEMS IN PANELS */
+  .data-item {
+    padding: 8px 0;
+    border-bottom: 1px solid var(--text-faint);
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .data-item:last-child { border-bottom: none; }
+  .data-item-title {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text);
+    letter-spacing: 0.3px;
+  }
+  .data-item-meta {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: 1px;
+  }
+  .data-item-badge {
+    display: inline-block;
+    font-family: var(--font-mono);
+    font-size: 9px;
+    letter-spacing: 1px;
+    padding: 2px 6px;
+    border: 1px solid;
+    margin-top: 2px;
+  }
+  .badge-new { color: var(--amber); border-color: var(--amber-dim); background: var(--amber-glow); }
+  .badge-today { color: #5dcaa5; border-color: rgba(93,202,165,0.3); background: rgba(93,202,165,0.05); }
+  .badge-match { color: var(--amber-bright); border-color: var(--amber); background: var(--amber-glow-strong); }
+
+  /* RIGHT PANEL */
+  #right {
+    display: flex;
+    flex-direction: column;
+    background: var(--black2);
+  }
+  .right-section {
+    padding: 16px 18px;
+    border-bottom: 1px solid var(--border);
+  }
+  .right-label {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    letter-spacing: 3px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+
+  /* TASKS */
+  .task-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--text-faint);
+  }
+  .task-item:last-child { border-bottom: none; }
+  .task-check {
+    width: 14px;
+    height: 14px;
+    border: 1px solid var(--border-bright);
+    flex-shrink: 0;
+    margin-top: 2px;
+    cursor: pointer;
+    position: relative;
+    transition: background 0.2s;
+  }
+  .task-check.done { background: var(--amber-glow-strong); border-color: var(--amber); }
+  .task-check.done::after {
+    content: '';
+    position: absolute;
+    left: 3px; top: 1px;
+    width: 5px; height: 8px;
+    border-right: 1.5px solid var(--amber);
+    border-bottom: 1.5px solid var(--amber);
+    transform: rotate(40deg);
+  }
+  .task-text {
+    font-size: 12px;
+    color: var(--text);
+    line-height: 1.4;
+    flex: 1;
+    letter-spacing: 0.3px;
+  }
+  .task-text.done { color: var(--text-dim); text-decoration: line-through; }
+  .add-task-row {
+    display: flex;
+    gap: 6px;
+    margin-top: 10px;
+  }
+  #new-task-input {
+    flex: 1;
+    background: var(--black3);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    padding: 6px 10px;
+    outline: none;
+  }
+  #new-task-input:focus { border-color: var(--amber-dim); }
+  #new-task-input::placeholder { color: var(--text-faint); }
+  .add-task-btn {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--amber-dim);
+    font-family: var(--font-mono);
+    font-size: 18px;
+    padding: 0 10px;
+    cursor: pointer;
+    line-height: 1;
+    transition: all 0.2s;
+  }
+  .add-task-btn:hover { border-color: var(--amber); color: var(--amber-bright); }
+
+  /* VOICE INDICATOR */
+  .voice-ring {
+    width: 48px; height: 48px;
+    border: 1px solid var(--border);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 8px;
+    transition: all 0.3s;
+  }
+  .voice-ring.speaking { border-color: var(--amber); background: var(--amber-glow); animation: voicePulse 0.8s ease-in-out infinite; }
+  .voice-ring svg { width: 20px; height: 20px; }
+  .voice-status {
+    text-align: center;
+    font-family: var(--font-mono);
+    font-size: 9px;
+    letter-spacing: 2px;
+    color: var(--text-dim);
+  }
+
+  /* HEADLINES */
+  .headline-item {
+    padding: 7px 0;
+    border-bottom: 1px solid var(--text-faint);
+    cursor: pointer;
+    transition: color 0.2s;
+  }
+  .headline-item:last-child { border-bottom: none; }
+  .headline-item:hover .hl-title { color: var(--amber-bright); }
+  .hl-title { font-size: 12px; color: var(--text); line-height: 1.4; letter-spacing: 0.2px; }
+  .hl-source { font-family: var(--font-mono); font-size: 9px; color: var(--text-dim); letter-spacing: 1px; margin-top: 2px; }
+
+  /* SETTINGS MODAL */
+  #settings-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.85);
+    z-index: 500;
+    align-items: center;
+    justify-content: center;
+  }
+  #settings-overlay.open { display: flex; }
+  #settings-modal {
+    background: var(--black2);
+    border: 1px solid var(--border-bright);
+    width: 480px;
+    max-width: 95vw;
+    padding: 28px;
+    position: relative;
+  }
+  .modal-title {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 4px;
+    color: var(--amber);
+    margin-bottom: 24px;
+  }
+  .setting-group { margin-bottom: 18px; }
+  .setting-label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: var(--text-dim);
+    margin-bottom: 6px;
+    display: block;
+  }
+  .setting-input {
+    width: 100%;
+    background: var(--black3);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    padding: 8px 12px;
+    outline: none;
+  }
+  .setting-input:focus { border-color: var(--amber-dim); }
+  .setting-hint { font-size: 10px; color: var(--text-dim); margin-top: 4px; letter-spacing: 0.5px; }
+  .modal-actions { display: flex; gap: 8px; margin-top: 24px; justify-content: flex-end; }
+  .modal-btn {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 2px;
+    padding: 8px 20px;
+    border: 1px solid;
+    cursor: pointer;
+    background: none;
+    transition: all 0.2s;
+  }
+  .modal-btn.save { border-color: var(--amber); color: var(--amber-bright); }
+  .modal-btn.save:hover { background: var(--amber-glow-strong); }
+  .modal-btn.cancel { border-color: var(--border); color: var(--text-dim); }
+  .modal-btn.cancel:hover { border-color: var(--text-dim); }
+  .modal-close {
+    position: absolute;
+    top: 14px; right: 16px;
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    font-size: 18px;
+    cursor: pointer;
+    font-family: var(--font-mono);
+    padding: 4px 8px;
+  }
+  .modal-close:hover { color: var(--amber-bright); }
+
+  /* DIVIDER */
+  .modal-divider {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 16px 0;
+  }
+
+  /* ANIMATIONS */
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes voicePulse {
+    0%, 100% { transform: scale(1); border-width: 1px; }
+    50% { transform: scale(1.08); border-width: 2px; }
+  }
+
+  /* SCROLLBAR */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: var(--black); }
+  ::-webkit-scrollbar-thumb { background: var(--text-faint); }
+  ::-webkit-scrollbar-thumb:hover { background: var(--amber-dim); }
+
+  /* RESPONSIVE */
+  @media (max-width: 900px) {
+    #main { grid-template-columns: 1fr; }
+    #right { border-top: 1px solid var(--border); }
+    #stats { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 600px) {
+    #stats { grid-template-columns: repeat(2, 1fr); }
+    .tb-logo { font-size: 16px; letter-spacing: 4px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- BOOT SCREEN -->
+<div id="boot">
+  <div class="boot-logo">JARVIS</div>
+  <div class="boot-sub">JUST A RATHER VERY INTELLIGENT SYSTEM</div>
+  <div class="boot-lines">
+    <div class="boot-line">
+      <span>NEURAL CORE</span>
+      <div class="boot-bar-outer"><div class="boot-bar-inner" id="bar1"></div></div>
+    </div>
+    <div class="boot-line">
+      <span>MEMORY BANKS</span>
+      <div class="boot-bar-outer"><div class="boot-bar-inner" id="bar2"></div></div>
+    </div>
+    <div class="boot-line">
+      <span>API CONNECTORS</span>
+      <div class="boot-bar-outer"><div class="boot-bar-inner" id="bar3"></div></div>
+    </div>
+    <div class="boot-line">
+      <span>VOICE ENGINE</span>
+      <div class="boot-bar-outer"><div class="boot-bar-inner" id="bar4"></div></div>
+    </div>
+  </div>
+  <div class="boot-tap" id="boot-tap">[ TAP TO INITIALIZE ]</div>
+</div>
+
+<!-- MAIN APP -->
+<div id="app">
+
+  <!-- TOP BAR -->
+  <div id="topbar">
+    <div class="tb-logo">JARVIS</div>
+    <div class="tb-center">
+      <div class="tb-greeting" id="greeting">Good morning, Kanishk</div>
+      <div class="tb-time" id="clock">--:-- -- | MON, 01 JAN</div>
+    </div>
+    <div class="tb-right">
+      <div class="status-dot"></div>
+      <div class="status-label" id="status-label">ONLINE</div>
+      <button class="tb-settings-btn" onclick="openSettings()">SETTINGS</button>
+    </div>
+  </div>
+
+  <!-- STAT TILES -->
+  <div id="stats">
+    <div class="stat-tile">
+      <div class="stat-label">JOBS TODAY</div>
+      <div class="stat-value" id="stat-jobs">—</div>
+      <div class="stat-sub">matched profiles</div>
+    </div>
+    <div class="stat-tile">
+      <div class="stat-label">CALENDAR</div>
+      <div class="stat-value" id="stat-events">—</div>
+      <div class="stat-sub">events today</div>
+    </div>
+    <div class="stat-tile">
+      <div class="stat-label">INBOX</div>
+      <div class="stat-value" id="stat-emails">—</div>
+      <div class="stat-sub">unread emails</div>
+    </div>
+    <div class="stat-tile">
+      <div class="stat-label">TASKS</div>
+      <div class="stat-value" id="stat-tasks">0</div>
+      <div class="stat-sub">pending</div>
+    </div>
+  </div>
+
+  <!-- MAIN GRID -->
+  <div id="main">
+
+    <!-- LEFT: COMMAND + RESPONSE + DATA -->
+    <div id="left">
+
+      <!-- COMMAND INPUT -->
+      <div id="command-area">
+        <div class="cmd-label">// COMMAND INPUT</div>
+        <div class="cmd-input-row">
+          <input id="cmd-input" type="text" placeholder="Give me a command, sir..." autocomplete="off" />
+          <button class="cmd-btn" id="mic-btn" onclick="toggleMic()" title="Voice input">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="9" y="2" width="6" height="12" rx="3"/>
+              <path d="M5 10a7 7 0 0014 0"/>
+              <line x1="12" y1="19" x2="12" y2="22"/>
+              <line x1="8" y1="22" x2="16" y2="22"/>
+            </svg>
+          </button>
+          <button class="cmd-btn" id="send-btn" onclick="handleCommand()">EXECUTE</button>
+        </div>
+        <div class="quick-actions">
+          <button class="qa-chip" onclick="quickCmd('Summarize my unread emails')">EMAILS</button>
+          <button class="qa-chip" onclick="quickCmd('What\'s on my calendar today?')">CALENDAR</button>
+          <button class="qa-chip" onclick="quickCmd('Show me today\'s job matches')">JOBS</button>
+          <button class="qa-chip" onclick="quickCmd('What should I focus on right now?')">FOCUS</button>
+          <button class="qa-chip" onclick="quickCmd('Give me a morning briefing')">BRIEFING</button>
+          <button class="qa-chip" onclick="quickCmd('Draft a follow-up email')">DRAFT EMAIL</button>
+        </div>
+      </div>
+
+      <!-- RESPONSE FEED -->
+      <div id="response-area">
+        <div class="resp-line" id="welcome-msg">
+          <div class="resp-who jarvis">JARVIS</div>
+          <div class="resp-text jarvis-text" id="welcome-text">Initializing...</div>
+        </div>
+      </div>
+
+      <!-- DATA PANELS -->
+      <div id="panels">
+
+        <!-- EMAILS -->
+        <div class="panel" id="panel-emails">
+          <div class="panel-header" onclick="togglePanel('emails')">
+            <div class="panel-title">INBOX</div>
+            <div class="panel-count" id="email-badge">—</div>
+          </div>
+          <div class="panel-body" id="panel-emails-body">
+            <div style="font-family:var(--font-mono);font-size:11px;color:var(--text-dim);padding:8px 0;">Connect Gmail in settings to load inbox.</div>
+          </div>
+        </div>
+
+        <!-- CALENDAR -->
+        <div class="panel" id="panel-calendar">
+          <div class="panel-header" onclick="togglePanel('calendar')">
+            <div class="panel-title">CALENDAR</div>
+            <div class="panel-count" id="cal-badge">—</div>
+          </div>
+          <div class="panel-body" id="panel-calendar-body">
+            <div style="font-family:var(--font-mono);font-size:11px;color:var(--text-dim);padding:8px 0;">Connect Google Calendar in settings to load events.</div>
+          </div>
+        </div>
+
+        <!-- JOBS -->
+        <div class="panel" id="panel-jobs">
+          <div class="panel-header" onclick="togglePanel('jobs')">
+            <div class="panel-title">JOB INTELLIGENCE</div>
+            <div class="panel-count" id="job-badge">—</div>
+          </div>
+          <div class="panel-body" id="panel-jobs-body">
+            <div style="font-family:var(--font-mono);font-size:11px;color:var(--text-dim);padding:8px 0;">Add Apify API key in settings to load live matches.</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- RIGHT PANEL -->
+    <div id="right">
+
+      <!-- VOICE -->
+      <div class="right-section">
+        <div class="right-label">VOICE ENGINE</div>
+        <div class="voice-ring" id="voice-ring">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M12 2a3 3 0 013 3v7a3 3 0 01-6 0V5a3 3 0 013-3z" stroke="var(--amber-dim)"/>
+            <path d="M4 10a8 8 0 0016 0" stroke="var(--amber-dim)"/>
+            <line x1="12" y1="19" x2="12" y2="22" stroke="var(--amber-dim)"/>
+          </svg>
+        </div>
+        <div class="voice-status" id="voice-status">STANDBY</div>
+        <div style="display:flex;gap:6px;margin-top:10px;">
+          <button class="cmd-btn" style="flex:1;font-size:10px;" onclick="testVoice()">TEST</button>
+          <button class="cmd-btn" style="flex:1;font-size:10px;" onclick="stopVoice()">STOP</button>
+        </div>
+      </div>
+
+      <!-- TASKS -->
+      <div class="right-section" style="flex:1;">
+        <div class="right-label">TASKS</div>
+        <div id="task-list"></div>
+        <div class="add-task-row">
+          <input id="new-task-input" type="text" placeholder="add task..." />
+          <button class="add-task-btn" onclick="addTask()">+</button>
+        </div>
+      </div>
+
+      <!-- HEADLINES -->
+      <div class="right-section">
+        <div class="right-label">INTELLIGENCE FEED</div>
+        <div id="headlines-list">
+          <div class="headline-item"><div class="hl-title">India on track for 500 GW renewable by 2030</div><div class="hl-source">ET ENERGY</div></div>
+          <div class="headline-item"><div class="hl-title">Global energy investment set to exceed $3T in 2026</div><div class="hl-source">IEA</div></div>
+          <div class="headline-item"><div class="hl-title">Green hydrogen finance gap narrowing at FID stage</div><div class="hl-source">S&P GLOBAL</div></div>
+          <div class="headline-item"><div class="hl-title">RBI holds rates, flags broad growth recovery</div><div class="hl-source">MINT</div></div>
+          <div class="headline-item"><div class="hl-title">NTPC, Adani lead next wave of green hydrogen</div><div class="hl-source">BLOOMBERG</div></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<!-- SETTINGS MODAL -->
+<div id="settings-overlay" onclick="closeSettingsOutside(event)">
+  <div id="settings-modal">
+    <div class="modal-title">// SYSTEM CONFIGURATION</div>
+    <button class="modal-close" onclick="closeSettings()">×</button>
+
+    <div class="setting-group">
+      <label class="setting-label">YOUR NAME</label>
+      <input class="setting-input" id="s-name" type="text" placeholder="Kanishk" />
+    </div>
+
+    <div class="setting-group">
+      <label class="setting-label">JOB SEARCH KEYWORDS</label>
+      <input class="setting-input" id="s-keywords" type="text" placeholder="project finance renewable energy India" />
+    </div>
+
+    <hr class="modal-divider">
+
+    <div class="setting-group">
+      <label class="setting-label">OPENAI API KEY</label>
+      <input class="setting-input" id="s-claude" type="password" placeholder="sk-..." />
+      <div class="setting-hint">Powers JARVIS intelligence. Get key at platform.openai.com → API keys</div>
+    </div>
+
+    <div class="setting-group">
+      <label class="setting-label">ELEVENLABS API KEY</label>
+      <input class="setting-input" id="s-eleven" type="password" placeholder="Your ElevenLabs key" />
+      <div class="setting-hint">Ultra-realistic voice. Falls back to browser TTS if blank.</div>
+    </div>
+
+    <div class="setting-group">
+      <label class="setting-label">APIFY API KEY</label>
+      <input class="setting-input" id="s-apify" type="password" placeholder="Your Apify key" />
+      <div class="setting-hint">Enables live job scraping from LinkedIn, Naukri, Indeed.</div>
+    </div>
+
+    <hr class="modal-divider">
+
+    <div class="setting-group">
+      <label class="setting-label">GOOGLE OAUTH (GMAIL + CALENDAR)</label>
+      <button class="cmd-btn" style="width:100%;padding:10px;" onclick="connectGoogle()">CONNECT GOOGLE ACCOUNT</button>
+      <div class="setting-hint" style="margin-top:6px;" id="google-status">Not connected. Requires Google OAuth setup (see README).</div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="modal-btn cancel" onclick="closeSettings()">CANCEL</button>
+      <button class="modal-btn save" onclick="saveSettings()">SAVE CONFIG</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── CONFIG & MEMORY ──────────────────────────────────────────────────────────
+const MEM = {
+  get: (k, def) => { try { return JSON.parse(localStorage.getItem('jarvis_'+k)) ?? def; } catch { return def; } },
+  set: (k, v)   => localStorage.setItem('jarvis_'+k, JSON.stringify(v)),
+};
+
+let CONFIG = {
+  name:     MEM.get('name', 'Kanishk'),
+  keywords: MEM.get('keywords', 'project finance renewable energy India'),
+  claude:   MEM.get('claude', ''),
+  eleven:   MEM.get('eleven', ''),
+  apify:    MEM.get('apify', ''),
+};
+
+// ─── BOOT SEQUENCE ────────────────────────────────────────────────────────────
+(function boot() {
+  const bars = [
+    { el: document.getElementById('bar1'), delay: 0,    dur: 600 },
+    { el: document.getElementById('bar2'), delay: 400,  dur: 500 },
+    { el: document.getElementById('bar3'), delay: 700,  dur: 700 },
+    { el: document.getElementById('bar4'), delay: 1100, dur: 400 },
+  ];
+  bars.forEach(b => {
+    setTimeout(() => { b.el.style.width = '100%'; b.el.style.transition = `width ${b.dur}ms ease`; }, b.delay);
+  });
+  document.getElementById('boot-tap').addEventListener('click', launchApp);
+})();
+
+function launchApp() {
+  document.getElementById('boot').classList.add('hidden');
+  document.getElementById('app').classList.add('visible');
+  initClock();
+  renderGreeting();
+  renderTasks();
+  loadData();
+  setTimeout(() => {
+    const name = CONFIG.name || 'Kanishk';
+    const hour = new Date().getHours();
+    const tod = hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening';
+    const msg = `Good ${tod}, ${name}. All systems online. I've loaded your briefing. What do you need?`;
+    document.getElementById('welcome-text').textContent = msg;
+    speak(msg);
+  }, 400);
+}
+
+// ─── CLOCK ────────────────────────────────────────────────────────────────────
+function initClock() {
+  function tick() {
+    const now = new Date();
+    const days = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
+    const months = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+    let h = now.getHours(), m = now.getMinutes().toString().padStart(2,'0');
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    h = h % 12 || 12;
+    const dateStr = `${days[now.getDay()]}, ${String(now.getDate()).padStart(2,'0')} ${months[now.getMonth()]}`;
+    document.getElementById('clock').textContent = `${h}:${m} ${ampm} | ${dateStr}`;
+  }
+  tick();
+  setInterval(tick, 1000);
+}
+
+function renderGreeting() {
+  const hour = new Date().getHours();
+  const tod = hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening';
+  document.getElementById('greeting').textContent = `Good ${tod}, ${CONFIG.name}`;
+}
+
+// ─── VOICE ENGINE ─────────────────────────────────────────────────────────────
+let synth = window.speechSynthesis;
+let voiceObj = null;
+let isSpeaking = false;
+
+function loadVoice() {
+  const voices = synth.getVoices();
+  voiceObj =
+    voices.find(v => v.name === 'Google UK English Male') ||
+    voices.find(v => v.name.includes('Daniel') && v.lang === 'en-GB') ||
+    voices.find(v => v.lang === 'en-GB') ||
+    voices.find(v => v.lang.startsWith('en')) ||
+    voices[0];
+}
+if (synth.onvoiceschanged !== undefined) synth.onvoiceschanged = loadVoice;
+loadVoice();
+
+async function speak(text) {
+  const eleven = CONFIG.eleven;
+  if (eleven) {
+    try {
+      await speakElevenLabs(text, eleven);
+      return;
+    } catch(e) {
+      console.warn('ElevenLabs failed, falling back to browser TTS:', e.message);
+    }
+  }
+  speakBrowser(text);
+}
+
+async function speakElevenLabs(text, apiKey) {
+  setVoiceState('speaking', 'ELEVENLABS ACTIVE');
+  const voiceId = '21m00Tcm4TlvDq8ikWAM';
+  const res = await fetch(`/.netlify/functions/tts`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text, voiceId })
+  });
+  if (!res.ok) throw new Error(`TTS function returned ${res.status}`);
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const audio = new Audio(url);
+  audio.onended = () => { setVoiceState('idle', 'STANDBY'); URL.revokeObjectURL(url); };
+  audio.onerror = () => { setVoiceState('idle', 'STANDBY'); };
+  await audio.play();
+}
+
+function speakBrowser(text) {
+  if (!synth) return;
+  synth.cancel();
+  const utt = new SpeechSynthesisUtterance(text);
+  utt.voice  = voiceObj;
+  utt.rate   = 0.92;
+  utt.pitch  = 0.82;
+  utt.volume = 1.0;
+  utt.onstart = () => setVoiceState('speaking', 'SPEAKING');
+  utt.onend   = () => setVoiceState('idle', 'STANDBY');
+  utt.onerror = () => setVoiceState('idle', 'STANDBY');
+  synth.speak(utt);
+  setVoiceState('speaking', 'BROWSER TTS');
+}
+
+function stopVoice() {
+  synth?.cancel();
+  setVoiceState('idle', 'STANDBY');
+}
+
+function testVoice() {
+  speak(`Voice engine confirmed. Ready for commands, ${CONFIG.name}.`);
+}
+
+function setVoiceState(state, label) {
+  const ring = document.getElementById('voice-ring');
+  const stat = document.getElementById('voice-status');
+  stat.textContent = label;
+  if (state === 'speaking') {
+    ring.classList.add('speaking');
+  } else {
+    ring.classList.remove('speaking');
+  }
+}
+
+// ─── MIC / SPEECH RECOGNITION ─────────────────────────────────────────────────
+let recognition = null;
+let listening = false;
+
+function toggleMic() {
+  if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
+    addResponse('JARVIS', 'Voice input not supported in this browser. Use Chrome or Edge.');
+    return;
+  }
+  if (listening) {
+    recognition?.stop();
+    listening = false;
+    document.getElementById('mic-btn').classList.remove('listening');
+    setVoiceState('idle', 'STANDBY');
+    return;
+  }
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  recognition = new SR();
+  recognition.lang = 'en-IN';
+  recognition.interimResults = false;
+  recognition.maxAlternatives = 1;
+  recognition.onstart = () => {
+    listening = true;
+    document.getElementById('mic-btn').classList.add('listening');
+    setVoiceState('speaking', 'LISTENING...');
+  };
+  recognition.onresult = (e) => {
+    const transcript = e.results[0][0].transcript;
+    document.getElementById('cmd-input').value = transcript;
+    listening = false;
+    document.getElementById('mic-btn').classList.remove('listening');
+    handleCommand();
+  };
+  recognition.onerror = (e) => {
+    listening = false;
+    document.getElementById('mic-btn').classList.remove('listening');
+    setVoiceState('idle', 'MIC ERROR');
+  };
+  recognition.onend = () => {
+    if (listening) { listening = false; document.getElementById('mic-btn').classList.remove('listening'); }
+    setVoiceState('idle', 'STANDBY');
+  };
+  recognition.start();
+}
+
+// ─── COMMAND HANDLER ──────────────────────────────────────────────────────────
+document.getElementById('cmd-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') handleCommand();
+});
+
+function quickCmd(text) {
+  document.getElementById('cmd-input').value = text;
+  handleCommand();
+}
+
+async function handleCommand() {
+  const input = document.getElementById('cmd-input');
+  const raw = input.value.trim();
+  if (!raw) return;
+  input.value = '';
+  addResponse('YOU', raw);
+
+  const thinking = addResponse('JARVIS', '...', 'thinking');
+
+  if (!CONFIG.claude) {
+    thinking.textContent = 'No OpenAI API key configured. Please open Settings and add your OpenAI API key to enable AI responses.';
+    speak('Please configure your API key in settings.');
+    return;
+  }
+
+  try {
+    const context = buildContext();
+    const reply = await callClaude(raw, context);
+    thinking.textContent = reply;
+    thinking.classList.remove('thinking');
+    speak(reply);
+  } catch(e) {
+    thinking.textContent = `Error: ${e.message}. Check your OpenAI API key in Settings.`;
+    thinking.classList.remove('thinking');
+  }
+}
+
+function buildContext() {
+  const tasks = MEM.get('tasks', []);
+  const pending = tasks.filter(t => !t.done).map(t => t.text).join(', ') || 'none';
+  const hour = new Date().getHours();
+  return `You are JARVIS, a high-performance AI executive assistant for ${CONFIG.name}. 
+Current time: ${document.getElementById('clock').textContent}. 
+Pending tasks: ${pending}. 
+Job search focus: ${CONFIG.keywords}.
+User's role: Finance professional specializing in project finance and renewable energy in India.
+Response rules:
+- Be concise and direct. Max 3 sentences unless a list is needed.
+- No greetings or preamble. Get to the point immediately.
+- Use structured lists for multi-part answers.
+- For email drafts: provide subject + body.
+- Tone: professional, calm, efficient — like a real executive assistant.`;
+}
+
+async function callClaude(userMsg, systemPrompt) {
+  const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${CONFIG.claude}`,
+    },
+    body: JSON.stringify({
+      model: 'gpt-4o',
+      max_tokens: 600,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userMsg }
+      ]
+    })
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error?.message || `API error ${res.status}`);
+  }
+  const data = await res.json();
+  return data.choices?.[0]?.message?.content || 'No response.';
+}
+
+// ─── RESPONSE FEED ────────────────────────────────────────────────────────────
+function addResponse(who, text, extraClass) {
+  const area = document.getElementById('response-area');
+  const line = document.createElement('div');
+  line.className = 'resp-line';
+  const whoEl = document.createElement('div');
+  whoEl.className = `resp-who ${who === 'YOU' ? 'user' : 'jarvis'}`;
+  whoEl.textContent = who;
+  const textEl = document.createElement('div');
+  textEl.className = `resp-text ${who !== 'YOU' ? 'jarvis-text' : ''} ${extraClass || ''}`;
+  textEl.textContent = text;
+  line.appendChild(whoEl);
+  line.appendChild(textEl);
+  area.appendChild(line);
+  area.scrollTop = area.scrollHeight;
+  return textEl;
+}
+
+// ─── DATA LOADING ─────────────────────────────────────────────────────────────
+async function loadData() {
+  loadStaticJobs();
+  updateTaskCount();
+}
+
+function loadStaticJobs() {
+  const jobs = [
+    { title: 'AVP – Underwriting & Execution, Energy Investment', co: 'GE Vernova', loc: 'Gurugram', type: 'On-site', src: 'Indeed', top: true },
+    { title: 'Financial Analyst – Renewables', co: 'STS', loc: 'India', type: 'Remote', src: 'LinkedIn', top: false },
+    { title: 'Infrastructure Advisory Consultant', co: 'EY', loc: 'New Delhi', type: 'On-site', src: 'Naukri', top: false },
+    { title: 'FP&A Analyst / Senior Analyst – Global Finance', co: 'MAVI', loc: 'India', type: 'Remote', src: 'LinkedIn', top: false },
+    { title: 'Project Finance L3/L4', co: 'ERM', loc: 'Delhi', type: 'On-site', src: 'Indeed', top: false },
+  ];
+  const body = document.getElementById('panel-jobs-body');
+  body.innerHTML = '';
+  jobs.forEach(j => {
+    const item = document.createElement('div');
+    item.className = 'data-item';
+    item.innerHTML = `
+      <div class="data-item-title">${j.title}${j.top ? ' <span style="font-size:9px;color:var(--amber);letter-spacing:1px;">★ TOP MATCH</span>' : ''}</div>
+      <div class="data-item-meta">${j.co} · ${j.loc} · ${j.src}</div>
+      <div><span class="data-item-badge ${j.type === 'Remote' ? 'badge-today' : 'badge-new'}">${j.type.toUpperCase()}</span></div>
+    `;
+    body.appendChild(item);
+  });
+  document.getElementById('job-badge').textContent = jobs.length;
+  document.getElementById('stat-jobs').textContent = jobs.length;
+  // Open jobs panel by default
+  document.getElementById('panel-jobs-body').classList.add('open');
+}
+
+// ─── PANEL TOGGLE ─────────────────────────────────────────────────────────────
+function togglePanel(name) {
+  const body = document.getElementById(`panel-${name}-body`);
+  body.classList.toggle('open');
+}
+
+// ─── TASKS ────────────────────────────────────────────────────────────────────
+function renderTasks() {
+  const tasks = MEM.get('tasks', [
+    { id: 1, text: 'Review AVP role at GE Vernova', done: false },
+    { id: 2, text: 'Update LinkedIn profile headline', done: false },
+    { id: 3, text: 'Prep questions for EY interview', done: false },
+  ]);
+  MEM.set('tasks', tasks);
+  const list = document.getElementById('task-list');
+  list.innerHTML = '';
+  tasks.forEach(task => {
+    const item = document.createElement('div');
+    item.className = 'task-item';
+    item.innerHTML = `
+      <div class="task-check ${task.done ? 'done' : ''}" onclick="toggleTask(${task.id})"></div>
+      <div class="task-text ${task.done ? 'done' : ''}">${task.text}</div>
+    `;
+    list.appendChild(item);
+  });
+  updateTaskCount();
+}
+
+function toggleTask(id) {
+  const tasks = MEM.get('tasks', []);
+  const t = tasks.find(t => t.id === id);
+  if (t) { t.done = !t.done; MEM.set('tasks', tasks); renderTasks(); }
+}
+
+function addTask() {
+  const input = document.getElementById('new-task-input');
+  const text = input.value.trim();
+  if (!text) return;
+  const tasks = MEM.get('tasks', []);
+  const id = Date.now();
+  tasks.push({ id, text, done: false });
+  MEM.set('tasks', tasks);
+  input.value = '';
+  renderTasks();
+}
+
+document.getElementById('new-task-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') addTask();
+});
+
+function updateTaskCount() {
+  const tasks = MEM.get('tasks', []);
+  const pending = tasks.filter(t => !t.done).length;
+  document.getElementById('stat-tasks').textContent = pending;
+}
+
+// ─── SETTINGS ─────────────────────────────────────────────────────────────────
+function openSettings() {
+  document.getElementById('s-name').value = CONFIG.name;
+  document.getElementById('s-keywords').value = CONFIG.keywords;
+  document.getElementById('s-claude').value = CONFIG.claude;
+  document.getElementById('s-eleven').value = CONFIG.eleven;
+  document.getElementById('s-apify').value = CONFIG.apify;
+  document.getElementById('settings-overlay').classList.add('open');
+}
+
+function closeSettings() {
+  document.getElementById('settings-overlay').classList.remove('open');
+}
+
+function closeSettingsOutside(e) {
+  if (e.target === document.getElementById('settings-overlay')) closeSettings();
+}
+
+function saveSettings() {
+  CONFIG.name     = document.getElementById('s-name').value.trim() || 'Kanishk';
+  CONFIG.keywords = document.getElementById('s-keywords').value.trim();
+  CONFIG.claude   = document.getElementById('s-claude').value.trim();
+  CONFIG.eleven   = document.getElementById('s-eleven').value.trim();
+  CONFIG.apify    = document.getElementById('s-apify').value.trim();
+  Object.entries(CONFIG).forEach(([k,v]) => MEM.set(k,v));
+  renderGreeting();
+  closeSettings();
+  speak(`Configuration saved. Good to go, ${CONFIG.name}.`);
+}
+
+function connectGoogle() {
+  document.getElementById('google-status').textContent = 'OAuth requires a backend. See README for Netlify OAuth setup guide.';
+}
+
+// ─── STAT PLACEHOLDERS ────────────────────────────────────────────────────────
+document.getElementById('stat-events').textContent = '0';
+document.getElementById('stat-emails').textContent = '0';
+document.getElementById('email-badge').textContent = '0';
+document.getElementById('cal-badge').textContent = '0';
+</script>
+</body>
+</html>
