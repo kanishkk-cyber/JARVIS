@@ -883,9 +883,12 @@
     <hr class="modal-divider">
 
     <div class="setting-group">
-      <label class="setting-label">GOOGLE OAUTH (GMAIL + CALENDAR)</label>
-      <button class="cmd-btn" style="width:100%;padding:10px;" onclick="connectGoogle()">CONNECT GOOGLE ACCOUNT</button>
-      <div class="setting-hint" style="margin-top:6px;" id="google-status">Not connected. Requires Google OAuth setup (see README).</div>
+      <label class="setting-label">GOOGLE APPS SCRIPT URL (GMAIL + CALENDAR)</label>
+
+      <input class="setting-input" id="s-google" type="text" placeholder="https://script.google.com/macros/s/..." />
+      <div class="setting-hint">Paste your deployed Apps Script URL here.</div>
+      <button class="cmd-btn" style="width:100%;padding:8px;margin-top:8px;" onclick="testGoogleConnection()">TEST CONNECTION</button>
+      <div class="setting-hint" style="margin-top:6px;" id="google-status">Not connected.</div>
     </div>
 
     <div class="modal-actions">
@@ -908,6 +911,7 @@ let CONFIG = {
   claude:   MEM.get('claude', ''),
   eleven:   MEM.get('eleven', ''),
   apify:    MEM.get('apify', ''),
+  google:   MEM.get('google', ''),
 };
 
 // ─── BOOT SEQUENCE ────────────────────────────────────────────────────────────
@@ -1190,6 +1194,10 @@ function addResponse(who, text, extraClass) {
 async function loadData() {
   loadStaticJobs();
   updateTaskCount();
+  if (CONFIG.google) {
+    loadEmails();
+    loadCalendar();
+  }
 }
 
 function loadStaticJobs() {
@@ -1281,6 +1289,7 @@ function openSettings() {
   document.getElementById('s-claude').value = CONFIG.claude;
   document.getElementById('s-eleven').value = CONFIG.eleven;
   document.getElementById('s-apify').value = CONFIG.apify;
+  document.getElementById('s-google').value = CONFIG.google;
   document.getElementById('settings-overlay').classList.add('open');
 }
 
@@ -1298,21 +1307,118 @@ function saveSettings() {
   CONFIG.claude   = document.getElementById('s-claude').value.trim();
   CONFIG.eleven   = document.getElementById('s-eleven').value.trim();
   CONFIG.apify    = document.getElementById('s-apify').value.trim();
+  CONFIG.google   = document.getElementById('s-google').value.trim();
   Object.entries(CONFIG).forEach(([k,v]) => MEM.set(k,v));
   renderGreeting();
   closeSettings();
   speak(`Configuration saved. Good to go, ${CONFIG.name}.`);
 }
 
-function connectGoogle() {
-  document.getElementById('google-status').textContent = 'OAuth requires a backend. See README for Netlify OAuth setup guide.';
+
+// ─── GOOGLE APPS SCRIPT ───────────────────────────────────────────────────────
+async function googleCall(action, params = {}) {
+  if (!CONFIG.google) return null;
+  const url = new URL(CONFIG.google);
+  url.searchParams.set('action', action);
+  Object.entries(params).forEach(([k,v]) => url.searchParams.set(k, v));
+  const res = await fetch(url.toString());
+  if (!res.ok) throw new Error(`Google connector error: ${res.status}`);
+  return await res.json();
 }
 
-// ─── STAT PLACEHOLDERS ────────────────────────────────────────────────────────
-document.getElementById('stat-events').textContent = '0';
-document.getElementById('stat-emails').textContent = '0';
-document.getElementById('email-badge').textContent = '0';
-document.getElementById('cal-badge').textContent = '0';
+async function loadEmails() {
+  if (!CONFIG.google) return;
+  try {
+    document.getElementById('panel-emails-body').innerHTML = '<div style="font-family:var(--font-mono);font-size:11px;color:var(--text-dim);padding:8px 0;">Loading...</div>';
+    const data = await googleCall('getEmails', { count: 8 });
+    if (!data || data.error) throw new Error(data?.error || 'Failed');
+    renderEmails(data);
+  } catch(e) {
+    document.getElementById('panel-emails-body').innerHTML = `<div style="font-family:var(--font-mono);font-size:11px;color:var(--text-dim);padding:8px 0;">Error: ${e.message}</div>`;
+  }
+}
+
+function renderEmails(data) {
+  const body = document.getElementById('panel-emails-body');
+  body.innerHTML = '';
+  if (!data.emails || data.emails.length === 0) {
+    body.innerHTML = '<div style="font-family:var(--font-mono);font-size:11px;color:var(--text-dim);padding:8px 0;">Inbox clear.</div>';
+    return;
+  }
+  data.emails.forEach(email => {
+    const item = document.createElement('div');
+    item.className = 'data-item';
+    const from = email.from.replace(/<.*>/, '').trim() || email.from;
+    const date = new Date(email.date).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+    item.innerHTML = `
+      <div class="data-item-title" style="${email.isUnread ? 'color:var(--amber-bright)' : ''}">${email.subject}</div>
+      <div class="data-item-meta">${from} · ${date}</div>
+      <div class="data-item-meta" style="color:var(--text-faint);font-size:10px;margin-top:2px;">${email.snippet.substring(0,100)}...</div>
+      ${email.isUnread ? '<span class="data-item-badge badge-new">UNREAD</span>' : ''}
+    `;
+    body.appendChild(item);
+  });
+  document.getElementById('email-badge').textContent = data.unread || 0;
+  document.getElementById('stat-emails').textContent = data.unread || 0;
+  document.getElementById('panel-emails-body').classList.add('open');
+}
+
+async function loadCalendar() {
+  if (!CONFIG.google) return;
+  try {
+    document.getElementById('panel-calendar-body').innerHTML = '<div style="font-family:var(--font-mono);font-size:11px;color:var(--text-dim);padding:8px 0;">Loading...</div>';
+    const data = await googleCall('getCalendar', { days: 1 });
+    if (!data || data.error) throw new Error(data?.error || 'Failed');
+    renderCalendar(data);
+  } catch(e) {
+    document.getElementById('panel-calendar-body').innerHTML = `<div style="font-family:var(--font-mono);font-size:11px;color:var(--text-dim);padding:8px 0;">Error: ${e.message}</div>`;
+  }
+}
+
+function renderCalendar(data) {
+  const body = document.getElementById('panel-calendar-body');
+  body.innerHTML = '';
+  if (!data.events || data.events.length === 0) {
+    body.innerHTML = '<div style="font-family:var(--font-mono);font-size:11px;color:var(--text-dim);padding:8px 0;">No events today.</div>';
+    document.getElementById('stat-events').textContent = '0';
+    document.getElementById('cal-badge').textContent = '0';
+    return;
+  }
+  data.events.forEach(event => {
+    const item = document.createElement('div');
+    item.className = 'data-item';
+    const start = event.isAllDay ? 'All day' : new Date(event.start).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+    item.innerHTML = `
+      <div class="data-item-title">${event.title}</div>
+      <div class="data-item-meta">${start}${event.duration ? ' · ' + event.duration + ' mins' : ''}${event.location ? ' · ' + event.location : ''}</div>
+      <span class="data-item-badge badge-today">TODAY</span>
+    `;
+    body.appendChild(item);
+  });
+  document.getElementById('cal-badge').textContent = data.total;
+  document.getElementById('stat-events').textContent = data.total;
+  document.getElementById('panel-calendar-body').classList.add('open');
+}
+
+async function testGoogleConnection() {
+  const url = document.getElementById('s-google').value.trim();
+  if (!url) { document.getElementById('google-status').textContent = 'Please enter a URL first.'; return; }
+  document.getElementById('google-status').textContent = 'Testing...';
+  try {
+    const testUrl = new URL(url);
+    testUrl.searchParams.set('action', 'ping');
+    const res = await fetch(testUrl.toString());
+    const data = await res.json();
+    if (data.status === 'ok') {
+      document.getElementById('google-status').textContent = '✓ Connected — ' + data.message;
+    } else {
+      document.getElementById('google-status').textContent = 'Error: ' + (data.error || 'Unknown response');
+    }
+  } catch(e) {
+    document.getElementById('google-status').textContent = 'Connection failed: ' + e.message;
+  }
+}
+
 </script>
 </body>
 </html>
