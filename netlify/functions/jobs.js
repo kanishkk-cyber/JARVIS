@@ -1,5 +1,5 @@
 // netlify/functions/jobs.js
-// Live job scraping from LinkedIn + Naukri via Apify
+// Indeed + Naukri — both confirmed working for India via live Apify MCP testing
 
 exports.handler = async (event) => {
   const headers = {
@@ -25,14 +25,16 @@ exports.handler = async (event) => {
   ];
 
   try {
-    // Run all searches in parallel — LinkedIn only (most reliable free actor)
-    const results = await Promise.allSettled(
-      searches.map(s => scrapeLinkedIn(s.keyword, s.category, apifyKey))
-    );
+    // Run Indeed + Naukri in parallel for all 5 categories
+    const [indeedResults, naukriResults] = await Promise.all([
+      Promise.allSettled(searches.map(s => scrapeIndeed(s.keyword, s.category, apifyKey))),
+      Promise.allSettled(searches.map(s => scrapeNaukri(s.keyword, s.category, apifyKey))),
+    ]);
 
-    const allJobs = results
-      .filter(r => r.status === 'fulfilled')
-      .flatMap(r => r.value);
+    const allJobs = [
+      ...indeedResults.filter(r => r.status === 'fulfilled').flatMap(r => r.value),
+      ...naukriResults.filter(r => r.status === 'fulfilled').flatMap(r => r.value),
+    ];
 
     // Deduplicate
     const seen = new Set();
@@ -48,50 +50,65 @@ exports.handler = async (event) => {
     return {
       statusCode: 200,
       headers,
-      body: JSON.stringify({
-        jobs: unique,
-        total: unique.length,
-        updated: new Date().toISOString(),
-      }),
+      body: JSON.stringify({ jobs: unique, total: unique.length, updated: new Date().toISOString() }),
     };
   } catch (err) {
     return { statusCode: 500, headers, body: JSON.stringify({ error: err.message }) };
   }
 };
 
-async function scrapeLinkedIn(keyword, category, apiKey) {
-  // Use the correct input format for bebity~linkedin-jobs-scraper
-  const input = {
-    title: keyword,
-    location: 'India',
-    rows: 5,
-  };
-
-  const url = `https://api.apify.com/v2/acts/bebity~linkedin-jobs-scraper/run-sync-get-dataset-items?token=${apiKey}&timeout=55&memory=256`;
-
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(input),
-  });
-
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`LinkedIn scraper error ${res.status}: ${text.substring(0, 200)}`);
-  }
-
+// ── INDEED (country: IN confirmed working) ───────────────────────────────────
+async function scrapeIndeed(keyword, category, apiKey) {
+  const res = await fetch(
+    `https://api.apify.com/v2/acts/misceres~indeed-scraper/run-sync-get-dataset-items?token=${apiKey}&timeout=55&memory=256`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ position: keyword, country: 'IN', location: 'India', maxItems: 4 }),
+    }
+  );
+  if (!res.ok) throw new Error(`Indeed ${res.status}`);
   const items = await res.json();
   if (!Array.isArray(items)) return [];
 
   return items.map(item => ({
-    title: item.title || item.positionName || '',
-    company: item.companyName || item.company || '',
+    title: item.positionName || '',
+    company: item.company || '',
     location: item.location || 'India',
-    url: item.jobUrl || item.url || item.link || '#',
-    postedAt: item.postedAt || item.date || '',
-    type: item.workType || item.contractType || 'Full-time',
+    url: item.url || '#',
+    postedAt: item.postingDateParsed || '',
+    type: Array.isArray(item.jobType) ? item.jobType[0] : 'Full-time',
     salary: item.salary || '',
-    source: 'LinkedIn',
+    source: 'Indeed',
+    category,
+  })).filter(j => j.title);
+}
+
+// ── NAUKRI (confirmed working, returns ₹ salaries) ───────────────────────────
+async function scrapeNaukri(keyword, category, apiKey) {
+  const res = await fetch(
+    `https://api.apify.com/v2/acts/muhammetakkurtt~naukri-job-scraper/run-sync-get-dataset-items?token=${apiKey}&timeout=55&memory=256`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ keyword, location: 'India', maxJobs: 50 }),
+    }
+  );
+  if (!res.ok) throw new Error(`Naukri ${res.status}`);
+  const items = await res.json();
+  if (!Array.isArray(items)) return [];
+
+  // Take only first 4 results per category
+  return items.slice(0, 4).map(item => ({
+    title: item.title || '',
+    company: item.companyName || '',
+    location: item.location || 'India',
+    url: item.jdURL || '#',
+    postedAt: item.createdDate || '',
+    type: 'Full-time',
+    salary: item.salary !== 'Not disclosed' ? item.salary : '',
+    experience: item.experienceText || '',
+    source: 'Naukri',
     category,
   })).filter(j => j.title);
 }
