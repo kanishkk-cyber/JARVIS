@@ -907,7 +907,7 @@ const MEM = {
 
 let CONFIG = {
   name:     MEM.get('name', 'Kanishk'),
-  keywords: MEM.get('keywords', 'project finance renewable energy India'),
+  keywords: MEM.get('keywords', 'project finance general management credit appraisal loan appraisal renewable financing India'),
   claude:   MEM.get('claude', ''),
   eleven:   MEM.get('eleven', ''),
   apify:    MEM.get('apify', ''),
@@ -1202,11 +1202,24 @@ async function loadData() {
 
 function loadStaticJobs() {
   const jobs = [
-    { title: 'AVP – Underwriting & Execution, Energy Investment', co: 'GE Vernova', loc: 'Gurugram', type: 'On-site', src: 'Indeed', top: true },
-    { title: 'Financial Analyst – Renewables', co: 'STS', loc: 'India', type: 'Remote', src: 'LinkedIn', top: false },
-    { title: 'Infrastructure Advisory Consultant', co: 'EY', loc: 'New Delhi', type: 'On-site', src: 'Naukri', top: false },
-    { title: 'FP&A Analyst / Senior Analyst – Global Finance', co: 'MAVI', loc: 'India', type: 'Remote', src: 'LinkedIn', top: false },
-    { title: 'Project Finance L3/L4', co: 'ERM', loc: 'Delhi', type: 'On-site', src: 'Indeed', top: false },
+    // PROJECT FINANCE
+    { title: 'AVP – Project Finance & Structured Finance', co: 'GE Vernova', loc: 'Gurugram', type: 'On-site', src: 'Indeed', top: true, category: 'Project Finance' },
+    { title: 'Project Finance Analyst – Infrastructure', co: 'L&T Financial Services', loc: 'Mumbai', type: 'On-site', src: 'Naukri', top: true, category: 'Project Finance' },
+    { title: 'Senior Manager – Project Finance', co: 'PFC', loc: 'New Delhi', type: 'On-site', src: 'LinkedIn', top: false, category: 'Project Finance' },
+    // GENERAL MANAGEMENT
+    { title: 'General Manager – Business Finance', co: 'Adani Group', loc: 'Ahmedabad', type: 'On-site', src: 'LinkedIn', top: true, category: 'General Management' },
+    { title: 'Deputy General Manager – Finance & Strategy', co: 'NTPC', loc: 'New Delhi', type: 'On-site', src: 'Naukri', top: false, category: 'General Management' },
+    // CREDIT APPRAISAL
+    { title: 'Credit Appraisal Manager – Infra & Energy', co: 'IREDA', loc: 'New Delhi', type: 'On-site', src: 'Indeed', top: true, category: 'Credit Appraisal' },
+    { title: 'Senior Credit Analyst – Project Loans', co: 'Yes Bank', loc: 'Mumbai', type: 'On-site', src: 'LinkedIn', top: false, category: 'Credit Appraisal' },
+    { title: 'Credit Appraisal Officer', co: 'REC Limited', loc: 'Gurugram', type: 'On-site', src: 'Naukri', top: false, category: 'Credit Appraisal' },
+    // LOAN APPRAISAL
+    { title: 'Loan Appraisal – Infrastructure Finance', co: 'SBI Capital Markets', loc: 'Mumbai', type: 'On-site', src: 'LinkedIn', top: true, category: 'Loan Appraisal' },
+    { title: 'Manager – Loan Appraisal & Monitoring', co: 'NABARD', loc: 'New Delhi', type: 'On-site', src: 'Naukri', top: false, category: 'Loan Appraisal' },
+    // RENEWABLE FINANCING
+    { title: 'Associate – Renewable Energy Finance', co: 'Greenko', loc: 'Hyderabad', type: 'On-site', src: 'LinkedIn', top: true, category: 'Renewable Financing' },
+    { title: 'Financial Analyst – Green Energy Projects', co: 'ReNew Power', loc: 'Gurugram', type: 'On-site', src: 'Indeed', top: false, category: 'Renewable Financing' },
+    { title: 'Renewable Finance Consultant', co: 'EY', loc: 'New Delhi', type: 'On-site', src: 'Naukri', top: false, category: 'Renewable Financing' },
   ];
   const body = document.getElementById('panel-jobs-body');
   body.innerHTML = '';
@@ -1216,7 +1229,10 @@ function loadStaticJobs() {
     item.innerHTML = `
       <div class="data-item-title">${j.title}${j.top ? ' <span style="font-size:9px;color:var(--amber);letter-spacing:1px;">★ TOP MATCH</span>' : ''}</div>
       <div class="data-item-meta">${j.co} · ${j.loc} · ${j.src}</div>
-      <div><span class="data-item-badge ${j.type === 'Remote' ? 'badge-today' : 'badge-new'}">${j.type.toUpperCase()}</span></div>
+      <div style="display:flex;gap:6px;margin-top:3px;">
+        <span class="data-item-badge ${j.type === 'Remote' ? 'badge-today' : 'badge-new'}">${j.type.toUpperCase()}</span>
+        <span class="data-item-badge" style="color:var(--text-dim);border-color:var(--text-faint);">${j.category.toUpperCase()}</span>
+      </div>
     `;
     body.appendChild(item);
   });
