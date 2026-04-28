@@ -1,15 +1,9 @@
 // netlify/functions/google.js
-// Proxies all Google Apps Script calls server-side — bypasses CORS permanently.
-// Set GOOGLE_SCRIPT_URL in Netlify → Site Settings → Environment Variables
-
 const https = require('https');
-const http = require('http');
 
 exports.handler = async (event) => {
   const headers = {
     'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type',
-    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
     'Content-Type': 'application/json',
   };
 
@@ -19,61 +13,38 @@ exports.handler = async (event) => {
 
   const scriptUrl = process.env.GOOGLE_SCRIPT_URL;
   if (!scriptUrl) {
-    return {
-      statusCode: 500,
-      headers,
-      body: JSON.stringify({ error: 'GOOGLE_SCRIPT_URL not set in Netlify environment variables' }),
-    };
+    return { statusCode: 500, headers, body: JSON.stringify({ error: 'GOOGLE_SCRIPT_URL not configured' }) };
   }
 
-  // Build query string from request params
-  let params = {};
-  if (event.httpMethod === 'GET') {
-    params = event.queryStringParameters || {};
-  } else {
-    try { params = JSON.parse(event.body || '{}'); } catch { params = {}; }
-  }
-
+  const params = event.queryStringParameters || {};
   const qs = new URLSearchParams(params).toString();
   const fullUrl = `${scriptUrl}${qs ? '?' + qs : ''}`;
 
   try {
-    const data = await fetchUrl(fullUrl);
-    return { statusCode: 200, headers, body: data };
+    const body = await fetchWithRedirects(fullUrl);
+    // Validate it's JSON before returning
+    JSON.parse(body); // throws if not JSON
+    return { statusCode: 200, headers, body };
   } catch (err) {
-    return {
-      statusCode: 500,
-      headers,
-      body: JSON.stringify({ error: err.message }),
-    };
+    return { statusCode: 500, headers, body: JSON.stringify({ error: err.message }) };
   }
 };
 
-function fetchUrl(url) {
+function fetchWithRedirects(url, redirectCount = 0) {
   return new Promise((resolve, reject) => {
-    const lib = url.startsWith('https') ? https : http;
-    let redirectCount = 0;
+    if (redirectCount > 10) return reject(new Error('Too many redirects'));
+    
+    https.get(url, (res) => {
+      // Follow all redirects
+      if ([301, 302, 303, 307, 308].includes(res.statusCode) && res.headers.location) {
+        return fetchWithRedirects(res.headers.location, redirectCount + 1)
+          .then(resolve).catch(reject);
+      }
 
-    function doRequest(currentUrl) {
-      lib.get(currentUrl, (res) => {
-        // Follow redirects (Google Apps Script redirects a lot)
-        if ((res.statusCode === 301 || res.statusCode === 302 || res.statusCode === 303) && res.headers.location) {
-          if (redirectCount++ > 10) return reject(new Error('Too many redirects'));
-          const redirectUrl = res.headers.location;
-          const nextLib = redirectUrl.startsWith('https') ? require('https') : require('http');
-          nextLib.get(redirectUrl, handleResponse).on('error', reject);
-          return;
-        }
-        handleResponse(res);
-      }).on('error', reject);
-    }
-
-    function handleResponse(res) {
-      let body = '';
-      res.on('data', chunk => body += chunk);
-      res.on('end', () => resolve(body));
-    }
-
-    doRequest(url);
+      let data = '';
+      res.on('data', chunk => data += chunk);
+      res.on('end', () => resolve(data));
+      res.on('error', reject);
+    }).on('error', reject);
   });
 }
