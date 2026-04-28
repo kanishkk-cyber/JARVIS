@@ -886,7 +886,7 @@
       <label class="setting-label">GOOGLE APPS SCRIPT URL (GMAIL + CALENDAR)</label>
 
       <input class="setting-input" id="s-google" type="text" placeholder="https://script.google.com/macros/s/..." />
-      <div class="setting-hint">Paste your deployed Apps Script URL here.</div>
+      <div class="setting-hint">Paste your Apps Script URL. Also add it as GOOGLE_SCRIPT_URL in Netlify environment variables.</div>
       <button class="cmd-btn" style="width:100%;padding:8px;margin-top:8px;" onclick="testGoogleConnection()">TEST CONNECTION</button>
       <div class="setting-hint" style="margin-top:6px;" id="google-status">Not connected.</div>
     </div>
@@ -1317,12 +1317,10 @@ function saveSettings() {
 
 // ─── GOOGLE APPS SCRIPT ───────────────────────────────────────────────────────
 async function googleCall(action, params = {}) {
-  if (!CONFIG.google) return null;
-  const url = new URL(CONFIG.google);
-  url.searchParams.set('action', action);
-  Object.entries(params).forEach(([k,v]) => url.searchParams.set(k, v));
-  const res = await fetch(url.toString());
-  if (!res.ok) throw new Error(`Google connector error: ${res.status}`);
+  // Routes through Netlify function to bypass Google Apps Script CORS restriction
+  const qs = new URLSearchParams({ action, ...params }).toString();
+  const res = await fetch(`/.netlify/functions/google?${qs}`);
+  if (!res.ok) throw new Error(`Proxy error: ${res.status}`);
   return await res.json();
 }
 
@@ -1403,19 +1401,19 @@ function renderCalendar(data) {
 async function testGoogleConnection() {
   const url = document.getElementById('s-google').value.trim();
   if (!url) { document.getElementById('google-status').textContent = 'Please enter a URL first.'; return; }
+  // Save URL first so googleCall can use it
+  CONFIG.google = url;
+  MEM.set('google', url);
   document.getElementById('google-status').textContent = 'Testing...';
   try {
-    const testUrl = new URL(url);
-    testUrl.searchParams.set('action', 'ping');
-    const res = await fetch(testUrl.toString());
-    const data = await res.json();
-    if (data.status === 'ok') {
+    const data = await googleCall('ping');
+    if (data && data.status === 'ok') {
       document.getElementById('google-status').textContent = '✓ Connected — ' + data.message;
     } else {
-      document.getElementById('google-status').textContent = 'Error: ' + (data.error || 'Unknown response');
+      document.getElementById('google-status').textContent = 'Error: ' + (data?.error || 'Unknown response');
     }
   } catch(e) {
-    document.getElementById('google-status').textContent = 'Connection failed: ' + e.message;
+    document.getElementById('google-status').textContent = 'Failed: ' + e.message;
   }
 }
 
