@@ -1,5 +1,5 @@
-// netlify/functions/google.js
 const https = require('https');
+const http = require('http');
 
 exports.handler = async (event) => {
   const headers = {
@@ -21,10 +21,24 @@ exports.handler = async (event) => {
   const fullUrl = `${scriptUrl}${qs ? '?' + qs : ''}`;
 
   try {
-    const body = await fetchWithRedirects(fullUrl);
-    // Validate it's JSON before returning
-    JSON.parse(body); // throws if not JSON
-    return { statusCode: 200, headers, body };
+    const { body, finalUrl } = await fetchWithRedirects(fullUrl);
+    
+    // Try to parse as JSON
+    try {
+      JSON.parse(body);
+      return { statusCode: 200, headers, body };
+    } catch(e) {
+      // Not JSON - return the raw body for debugging
+      return { 
+        statusCode: 200, 
+        headers, 
+        body: JSON.stringify({ 
+          error: 'Google returned non-JSON response', 
+          preview: body.substring(0, 300),
+          finalUrl: finalUrl
+        }) 
+      };
+    }
   } catch (err) {
     return { statusCode: 500, headers, body: JSON.stringify({ error: err.message }) };
   }
@@ -32,19 +46,26 @@ exports.handler = async (event) => {
 
 function fetchWithRedirects(url, redirectCount = 0) {
   return new Promise((resolve, reject) => {
-    if (redirectCount > 10) return reject(new Error('Too many redirects'));
+    if (redirectCount > 15) return reject(new Error('Too many redirects'));
     
-    https.get(url, (res) => {
-      // Follow all redirects
-      if ([301, 302, 303, 307, 308].includes(res.statusCode) && res.headers.location) {
-        return fetchWithRedirects(res.headers.location, redirectCount + 1)
-          .then(resolve).catch(reject);
+    const lib = url.startsWith('https') ? https : http;
+    
+    const req = lib.get(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0',
+        'Accept': 'application/json, text/plain, */*',
       }
-
+    }, (res) => {
+      if ([301, 302, 303, 307, 308].includes(res.statusCode) && res.headers.location) {
+        const next = res.headers.location;
+        res.resume();
+        return fetchWithRedirects(next, redirectCount + 1).then(resolve).catch(reject);
+      }
       let data = '';
       res.on('data', chunk => data += chunk);
-      res.on('end', () => resolve(data));
+      res.on('end', () => resolve({ body: data, finalUrl: url }));
       res.on('error', reject);
-    }).on('error', reject);
+    });
+    req.on('error', reject);
   });
 }
