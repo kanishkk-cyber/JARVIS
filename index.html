@@ -1192,7 +1192,7 @@ function addResponse(who, text, extraClass) {
 
 // ─── DATA LOADING ─────────────────────────────────────────────────────────────
 async function loadData() {
-  loadStaticJobs();
+  loadJobs();
   updateTaskCount();
   if (CONFIG.google) {
     loadEmails();
@@ -1200,45 +1200,114 @@ async function loadData() {
   }
 }
 
-function loadStaticJobs() {
-  const jobs = [
-    // PROJECT FINANCE
-    { title: 'AVP – Project Finance & Structured Finance', co: 'GE Vernova', loc: 'Gurugram', type: 'On-site', src: 'Indeed', top: true, category: 'Project Finance' },
-    { title: 'Project Finance Analyst – Infrastructure', co: 'L&T Financial Services', loc: 'Mumbai', type: 'On-site', src: 'Naukri', top: true, category: 'Project Finance' },
-    { title: 'Senior Manager – Project Finance', co: 'PFC', loc: 'New Delhi', type: 'On-site', src: 'LinkedIn', top: false, category: 'Project Finance' },
-    // GENERAL MANAGEMENT
-    { title: 'General Manager – Business Finance', co: 'Adani Group', loc: 'Ahmedabad', type: 'On-site', src: 'LinkedIn', top: true, category: 'General Management' },
-    { title: 'Deputy General Manager – Finance & Strategy', co: 'NTPC', loc: 'New Delhi', type: 'On-site', src: 'Naukri', top: false, category: 'General Management' },
-    // CREDIT APPRAISAL
-    { title: 'Credit Appraisal Manager – Infra & Energy', co: 'IREDA', loc: 'New Delhi', type: 'On-site', src: 'Indeed', top: true, category: 'Credit Appraisal' },
-    { title: 'Senior Credit Analyst – Project Loans', co: 'Yes Bank', loc: 'Mumbai', type: 'On-site', src: 'LinkedIn', top: false, category: 'Credit Appraisal' },
-    { title: 'Credit Appraisal Officer', co: 'REC Limited', loc: 'Gurugram', type: 'On-site', src: 'Naukri', top: false, category: 'Credit Appraisal' },
-    // LOAN APPRAISAL
-    { title: 'Loan Appraisal – Infrastructure Finance', co: 'SBI Capital Markets', loc: 'Mumbai', type: 'On-site', src: 'LinkedIn', top: true, category: 'Loan Appraisal' },
-    { title: 'Manager – Loan Appraisal & Monitoring', co: 'NABARD', loc: 'New Delhi', type: 'On-site', src: 'Naukri', top: false, category: 'Loan Appraisal' },
-    // RENEWABLE FINANCING
-    { title: 'Associate – Renewable Energy Finance', co: 'Greenko', loc: 'Hyderabad', type: 'On-site', src: 'LinkedIn', top: true, category: 'Renewable Financing' },
-    { title: 'Financial Analyst – Green Energy Projects', co: 'ReNew Power', loc: 'Gurugram', type: 'On-site', src: 'Indeed', top: false, category: 'Renewable Financing' },
-    { title: 'Renewable Finance Consultant', co: 'EY', loc: 'New Delhi', type: 'On-site', src: 'Naukri', top: false, category: 'Renewable Financing' },
-  ];
+async function loadJobs() {
+  const body = document.getElementById('panel-jobs-body');
+  body.innerHTML = '<div style="font-family:var(--font-mono);font-size:11px;color:var(--text-dim);padding:8px 0;">Scanning LinkedIn for live matches...</div>';
+
+  // Check cache first (refresh every 2 hours)
+  const cached = MEM.get('jobs_cache', null);
+  const cacheTime = MEM.get('jobs_cache_time', 0);
+  const twoHours = 2 * 60 * 60 * 1000;
+
+  if (cached && (Date.now() - cacheTime < twoHours)) {
+    renderJobs(cached);
+    return;
+  }
+
+  if (!CONFIG.apify) {
+    renderFallbackJobs();
+    return;
+  }
+
+  try {
+    const res = await fetch('/.netlify/functions/jobs');
+    if (!res.ok) throw new Error('Job fetch failed');
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    MEM.set('jobs_cache', data);
+    MEM.set('jobs_cache_time', Date.now());
+    renderJobs(data);
+  } catch(e) {
+    renderFallbackJobs();
+  }
+}
+
+function renderJobs(data) {
   const body = document.getElementById('panel-jobs-body');
   body.innerHTML = '';
-  jobs.forEach(j => {
-    const item = document.createElement('div');
-    item.className = 'data-item';
-    item.innerHTML = `
-      <div class="data-item-title">${j.title}${j.top ? ' <span style="font-size:9px;color:var(--amber);letter-spacing:1px;">★ TOP MATCH</span>' : ''}</div>
-      <div class="data-item-meta">${j.co} · ${j.loc} · ${j.src}</div>
-      <div style="display:flex;gap:6px;margin-top:3px;">
-        <span class="data-item-badge ${j.type === 'Remote' ? 'badge-today' : 'badge-new'}">${j.type.toUpperCase()}</span>
-        <span class="data-item-badge" style="color:var(--text-dim);border-color:var(--text-faint);">${j.category.toUpperCase()}</span>
-      </div>
-    `;
-    body.appendChild(item);
+
+  if (!data.jobs || data.jobs.length === 0) {
+    body.innerHTML = '<div style="font-family:var(--font-mono);font-size:11px;color:var(--text-dim);padding:8px 0;">No jobs found.</div>';
+    return;
+  }
+
+  // Group by category
+  const categories = {};
+  data.jobs.forEach(job => {
+    if (!categories[job.category]) categories[job.category] = [];
+    categories[job.category].push(job);
   });
-  document.getElementById('job-badge').textContent = jobs.length;
-  document.getElementById('stat-jobs').textContent = jobs.length;
-  // Open jobs panel by default
+
+  Object.entries(categories).forEach(([cat, jobs]) => {
+    const header = document.createElement('div');
+    header.style.cssText = 'font-family:var(--font-mono);font-size:9px;letter-spacing:3px;color:var(--amber-dim);padding:8px 0 4px;border-bottom:1px solid var(--text-faint);margin-bottom:4px;';
+    header.textContent = cat.toUpperCase();
+    body.appendChild(header);
+
+    jobs.forEach(job => {
+      const item = document.createElement('div');
+      item.className = 'data-item';
+      item.style.cursor = 'pointer';
+      item.onclick = () => job.url !== '#' && window.open(job.url, '_blank');
+
+      const posted = job.postedAt ? new Date(job.postedAt).toLocaleDateString('en-IN', { day:'numeric', month:'short' }) : '';
+      const srcColor = job.source === 'LinkedIn' ? 'color:#0a66c2;border-color:rgba(10,102,194,0.4);background:rgba(10,102,194,0.08)' 
+                     : job.source === 'Naukri' ? 'color:#ff7555;border-color:rgba(255,117,85,0.4);background:rgba(255,117,85,0.08)'
+                     : job.source === 'Indeed' ? 'color:#2164f3;border-color:rgba(33,100,243,0.4);background:rgba(33,100,243,0.08)'
+                     : 'color:var(--text-dim);border-color:var(--text-faint)';
+
+      item.innerHTML = `
+        <div class="data-item-title" style="color:var(--amber-bright)">${job.title}</div>
+        <div class="data-item-meta">${job.company} · ${job.location}${job.salary ? ' · <span style="color:var(--amber-dim)">' + job.salary + '</span>' : ''}</div>
+        ${job.experience ? `<div class="data-item-meta" style="font-size:9px;">Exp: ${job.experience}</div>` : ''}
+        <div style="display:flex;gap:6px;margin-top:3px;align-items:center;flex-wrap:wrap;">
+          <span class="data-item-badge" style="${srcColor}">${job.source || 'JOB'}</span>
+          <span class="data-item-badge" style="color:var(--text-dim);border-color:var(--text-faint);">${job.type || 'Full-time'}</span>
+          ${posted ? `<span style="font-family:var(--font-mono);font-size:9px;color:var(--text-faint);margin-left:auto;">${posted}</span>` : ''}
+        </div>
+      `;
+      body.appendChild(item);
+    });
+  });
+
+  const updated = data.updated ? new Date(data.updated).toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit' }) : '';
+  if (updated) {
+    const footer = document.createElement('div');
+    footer.style.cssText = 'font-family:var(--font-mono);font-size:9px;color:var(--text-faint);padding:8px 0 4px;text-align:right;';
+    footer.textContent = `UPDATED ${updated}`;
+    body.appendChild(footer);
+  }
+
+  document.getElementById('job-badge').textContent = data.total || data.jobs.length;
+  document.getElementById('stat-jobs').textContent = data.total || data.jobs.length;
+  document.getElementById('panel-jobs-body').classList.add('open');
+}
+
+function renderFallbackJobs() {
+  // Show message to configure Apify
+  const body = document.getElementById('panel-jobs-body');
+  body.innerHTML = `
+    <div style="font-family:var(--font-mono);font-size:11px;color:var(--text-dim);padding:8px 0;">
+      Add your Apify API key in Settings to load live LinkedIn jobs.<br><br>
+      <span style="color:var(--amber-dim);">Categories tracked:</span><br>
+      · Project Finance<br>
+      · General Management<br>
+      · Credit Appraisal<br>
+      · Loan Appraisal<br>
+      · Renewable Financing
+    </div>`;
+  document.getElementById('job-badge').textContent = '0';
+  document.getElementById('stat-jobs').textContent = '0';
   document.getElementById('panel-jobs-body').classList.add('open');
 }
 
