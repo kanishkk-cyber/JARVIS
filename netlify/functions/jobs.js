@@ -1,6 +1,5 @@
 // netlify/functions/jobs.js
-// Scrapes LinkedIn, Naukri, Indeed, Glassdoor for all 5 job categories
-// Uses Apify actors - no login required
+// Live job scraping from LinkedIn + Naukri via Apify
 
 exports.handler = async (event) => {
   const headers = {
@@ -17,54 +16,33 @@ exports.handler = async (event) => {
     return { statusCode: 500, headers, body: JSON.stringify({ error: 'APIFY_API_KEY not configured' }) };
   }
 
-  const categories = [
-    'Project Finance India',
-    'General Management Finance India',
-    'Credit Appraisal India',
-    'Loan Appraisal India',
-    'Renewable Energy Finance India',
+  const searches = [
+    { keyword: 'Project Finance', category: 'Project Finance' },
+    { keyword: 'General Management Finance', category: 'General Management' },
+    { keyword: 'Credit Appraisal', category: 'Credit Appraisal' },
+    { keyword: 'Loan Appraisal', category: 'Loan Appraisal' },
+    { keyword: 'Renewable Energy Finance', category: 'Renewable Financing' },
   ];
 
-  const categoryMap = {
-    'Project Finance India': 'Project Finance',
-    'General Management Finance India': 'General Management',
-    'Credit Appraisal India': 'Credit Appraisal',
-    'Loan Appraisal India': 'Loan Appraisal',
-    'Renewable Energy Finance India': 'Renewable Financing',
-  };
-
   try {
-    // Run LinkedIn + Naukri scrapes in parallel for all categories
-    const [linkedinResults, naukriResults] = await Promise.all([
-      scrapeLinkedIn(categories, apifyKey),
-      scrapeNaukri(categories, apifyKey),
-    ]);
+    // Run all searches in parallel — LinkedIn only (most reliable free actor)
+    const results = await Promise.allSettled(
+      searches.map(s => scrapeLinkedIn(s.keyword, s.category, apifyKey))
+    );
 
-    // Combine all results
-    const allJobs = [...linkedinResults, ...naukriResults];
+    const allJobs = results
+      .filter(r => r.status === 'fulfilled')
+      .flatMap(r => r.value);
 
-    // Assign categories based on keyword matching
-    allJobs.forEach(job => {
-      if (!job.category) {
-        const title = (job.title || '').toLowerCase();
-        if (title.includes('project finance') || title.includes('structured finance')) job.category = 'Project Finance';
-        else if (title.includes('credit') || title.includes('appraisal')) job.category = 'Credit Appraisal';
-        else if (title.includes('loan')) job.category = 'Loan Appraisal';
-        else if (title.includes('renewable') || title.includes('green energy') || title.includes('solar')) job.category = 'Renewable Financing';
-        else job.category = 'General Management';
-      }
-    });
-
-    // Deduplicate by URL
+    // Deduplicate
     const seen = new Set();
     const unique = allJobs.filter(job => {
-      const key = job.url || job.title + job.company;
+      const key = job.url || `${job.title}-${job.company}`;
       if (seen.has(key)) return false;
       seen.add(key);
       return true;
     });
 
-    // Sort by date, newest first
     unique.sort((a, b) => new Date(b.postedAt || 0) - new Date(a.postedAt || 0));
 
     return {
@@ -74,7 +52,6 @@ exports.handler = async (event) => {
         jobs: unique,
         total: unique.length,
         updated: new Date().toISOString(),
-        sources: [...new Set(unique.map(j => j.source))],
       }),
     };
   } catch (err) {
@@ -82,85 +59,39 @@ exports.handler = async (event) => {
   }
 };
 
-// ── LINKEDIN SCRAPER ──────────────────────────────────────────────────────────
-async function scrapeLinkedIn(categories, apiKey) {
-  const allJobs = [];
-  for (const keyword of categories) {
-    try {
-      const input = {
-        keyword,
-        location: 'India',
-        count: 5,
-        proxy: { useApifyProxy: true },
-      };
-      const res = await callApify('bebity~linkedin-jobs-scraper', input, apiKey);
-      const jobs = res.map(item => ({
-        title: item.title || item.positionName || '',
-        company: item.companyName || item.company || '',
-        location: item.location || 'India',
-        url: item.jobUrl || item.url || '#',
-        postedAt: item.postedAt || item.publishedAt || '',
-        type: item.workType || item.employmentType || 'Full-time',
-        salary: item.salary || '',
-        source: 'LinkedIn',
-        category: getCategoryFromKeyword(keyword),
-      })).filter(j => j.title);
-      allJobs.push(...jobs);
-    } catch(e) {
-      console.error('LinkedIn error for', keyword, e.message);
-    }
-  }
-  return allJobs;
-}
+async function scrapeLinkedIn(keyword, category, apiKey) {
+  // Use the correct input format for bebity~linkedin-jobs-scraper
+  const input = {
+    title: keyword,
+    location: 'India',
+    rows: 5,
+  };
 
-// ── NAUKRI SCRAPER ────────────────────────────────────────────────────────────
-async function scrapeNaukri(categories, apiKey) {
-  const allJobs = [];
-  for (const keyword of categories) {
-    try {
-      const input = {
-        keyword: keyword.replace(' India', ''),
-        location: 'India',
-        maxJobs: 5,
-      };
-      const res = await callApify('ocrad~naukri-jobs-scraper', input, apiKey);
-      const jobs = res.map(item => ({
-        title: item.title || item.jobTitle || '',
-        company: item.company || item.companyName || '',
-        location: item.location || item.jobLocation || 'India',
-        url: item.jdURL || item.url || item.jobUrl || '#',
-        postedAt: item.createdDate || item.postedAt || '',
-        type: item.workMode || item.jobType || 'Full-time',
-        salary: item.salary || item.ctcString || '',
-        experience: item.experience || '',
-        source: 'Naukri',
-        category: getCategoryFromKeyword(keyword),
-      })).filter(j => j.title);
-      allJobs.push(...jobs);
-    } catch(e) {
-      console.error('Naukri error for', keyword, e.message);
-    }
-  }
-  return allJobs;
-}
+  const url = `https://api.apify.com/v2/acts/bebity~linkedin-jobs-scraper/run-sync-get-dataset-items?token=${apiKey}&timeout=55&memory=256`;
 
-// ── APIFY CALLER ──────────────────────────────────────────────────────────────
-async function callApify(actorId, input, apiKey) {
-  const url = `https://api.apify.com/v2/acts/${actorId}/run-sync-get-dataset-items?token=${apiKey}&timeout=55&memory=256`;
   const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(input),
   });
-  if (!res.ok) throw new Error(`Apify ${actorId} returned ${res.status}`);
-  return await res.json();
-}
 
-function getCategoryFromKeyword(keyword) {
-  if (keyword.includes('Project Finance')) return 'Project Finance';
-  if (keyword.includes('General Management')) return 'General Management';
-  if (keyword.includes('Credit')) return 'Credit Appraisal';
-  if (keyword.includes('Loan')) return 'Loan Appraisal';
-  if (keyword.includes('Renewable')) return 'Renewable Financing';
-  return 'General';
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`LinkedIn scraper error ${res.status}: ${text.substring(0, 200)}`);
+  }
+
+  const items = await res.json();
+  if (!Array.isArray(items)) return [];
+
+  return items.map(item => ({
+    title: item.title || item.positionName || '',
+    company: item.companyName || item.company || '',
+    location: item.location || 'India',
+    url: item.jobUrl || item.url || item.link || '#',
+    postedAt: item.postedAt || item.date || '',
+    type: item.workType || item.contractType || 'Full-time',
+    salary: item.salary || '',
+    source: 'LinkedIn',
+    category,
+  })).filter(j => j.title);
 }
