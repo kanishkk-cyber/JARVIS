@@ -893,6 +893,8 @@ window.addEventListener('DOMContentLoaded', () => {
   document.getElementById('job-keyword').value = MEM.get('job_keyword', 'Project Finance');
   document.getElementById('job-location').value = MEM.get('job_location', 'India');
   updateTaskCount();
+  // Voice greeting
+  setTimeout(() => speakBrowser(msg), 1000);
 });
 
 // ── CLOCK ─────────────────────────────────────────────────
