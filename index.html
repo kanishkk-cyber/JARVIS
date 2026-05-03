@@ -1,0 +1,1317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JARVIS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&family=DM+Mono:wght@300;400&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #f7f7f5;
+  --bg2: #ffffff;
+  --bg3: #f0f0ed;
+  --bg4: #e8e8e4;
+  --border: #e2e2dd;
+  --border2: #d0d0ca;
+  --text: #1a1a18;
+  --text2: #6b6b65;
+  --text3: #9e9e96;
+  --accent: #1a1a18;
+  --accent2: #3d3d38;
+  --blue: #2563eb;
+  --blue-light: #eff6ff;
+  --green: #16a34a;
+  --green-light: #f0fdf4;
+  --red: #dc2626;
+  --red-light: #fef2f2;
+  --amber: #d97706;
+  --amber-light: #fffbeb;
+  --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.04);
+  --shadow-lg: 0 8px 24px rgba(0,0,0,0.10), 0 4px 8px rgba(0,0,0,0.04);
+  --radius: 10px;
+  --radius-sm: 6px;
+  --font: 'DM Sans', sans-serif;
+  --mono: 'DM Mono', monospace;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  min-height: 100vh;
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── TOPBAR ─────────────────────────────────────────────── */
+#topbar {
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  padding: 0 20px;
+  display: flex;
+  align-items: center;
+  gap: 0;
+  height: 52px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.tb-logo {
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  color: var(--text);
+  margin-right: 32px;
+  flex-shrink: 0;
+}
+
+.tb-logo span { color: var(--text3); font-weight: 300; }
+
+/* ── TABS ───────────────────────────────────────────────── */
+.tabs {
+  display: flex;
+  gap: 2px;
+  flex: 1;
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--text2);
+  border: none;
+  background: none;
+  transition: all 0.15s;
+  position: relative;
+  white-space: nowrap;
+}
+
+.tab:hover { background: var(--bg3); color: var(--text); }
+
+.tab.active {
+  background: var(--bg3);
+  color: var(--text);
+  font-weight: 500;
+}
+
+.tab-badge {
+  background: var(--text);
+  color: var(--bg2);
+  font-size: 10px;
+  font-family: var(--mono);
+  padding: 1px 5px;
+  border-radius: 10px;
+  min-width: 18px;
+  text-align: center;
+  line-height: 16px;
+}
+
+.tab-badge.blue { background: var(--blue); }
+.tab-badge.green { background: var(--green); }
+
+.tb-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 16px;
+  flex-shrink: 0;
+}
+
+.tb-time {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text3);
+}
+
+.tb-settings {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border: 1px solid var(--border2);
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text2);
+  font-size: 12px;
+  font-family: var(--font);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.tb-settings:hover { background: var(--bg3); color: var(--text); border-color: var(--text3); }
+
+/* ── MAIN LAYOUT ────────────────────────────────────────── */
+#main {
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  gap: 0;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 20px;
+  gap: 16px;
+  min-height: calc(100vh - 52px);
+}
+
+/* ── LEFT PANEL ─────────────────────────────────────────── */
+#left { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+
+/* ── COMMAND BOX ────────────────────────────────────────── */
+#cmd-box {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+.cmd-header {
+  padding: 12px 16px 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.cmd-label {
+  font-size: 11px;
+  font-family: var(--mono);
+  color: var(--text3);
+  letter-spacing: 0.05em;
+}
+
+.cmd-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px 12px;
+}
+
+#cmd-input {
+  flex: 1;
+  border: 1px solid var(--border);
+  background: var(--bg3);
+  border-radius: var(--radius-sm);
+  padding: 9px 12px;
+  font-family: var(--font);
+  font-size: 13.5px;
+  color: var(--text);
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+#cmd-input:focus { border-color: var(--text3); background: var(--bg2); box-shadow: 0 0 0 3px rgba(0,0,0,0.04); }
+#cmd-input::placeholder { color: var(--text3); }
+
+.cmd-actions { display: flex; gap: 6px; }
+
+.btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border2);
+  background: var(--bg2);
+  color: var(--text2);
+  font-family: var(--font);
+  font-size: 12.5px;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.btn:hover { background: var(--bg3); color: var(--text); border-color: var(--text3); }
+.btn.primary { background: var(--text); color: var(--bg2); border-color: var(--text); }
+.btn.primary:hover { background: var(--accent2); border-color: var(--accent2); }
+.btn.listening { background: var(--red-light); color: var(--red); border-color: var(--red); }
+
+.speak-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px 10px 16px;
+  font-size: 11.5px;
+  color: var(--text3);
+}
+.speak-toggle input { accent-color: var(--text); cursor: pointer; }
+.speak-toggle label { cursor: pointer; }
+
+/* ── RESPONSE FEED ──────────────────────────────────────── */
+#response-feed {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  min-height: 120px;
+  max-height: 320px;
+  overflow-y: auto;
+  padding: 4px 0;
+}
+
+.msg {
+  display: flex;
+  gap: 10px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+  animation: fadeUp 0.2s ease;
+}
+.msg:last-child { border-bottom: none; }
+
+.msg-who {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text3);
+  min-width: 52px;
+  padding-top: 2px;
+  flex-shrink: 0;
+  letter-spacing: 0.03em;
+}
+.msg-who.jarvis { color: var(--blue); }
+
+.msg-text {
+  font-size: 13.5px;
+  color: var(--text);
+  line-height: 1.55;
+  flex: 1;
+}
+.msg-text.thinking { color: var(--text3); font-style: italic; }
+
+/* ── TAB CONTENT PANELS ─────────────────────────────────── */
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+/* ── DATA CARD ──────────────────────────────────────────── */
+.card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.15s;
+}
+.card-header:hover { background: var(--bg3); }
+
+.card-title {
+  font-size: 12px;
+  font-family: var(--mono);
+  color: var(--text2);
+  letter-spacing: 0.05em;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.card-count {
+  font-size: 11px;
+  font-family: var(--mono);
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  padding: 1px 7px;
+  border-radius: 10px;
+  color: var(--text2);
+}
+
+.card-chevron {
+  color: var(--text3);
+  transition: transform 0.2s;
+  font-size: 12px;
+}
+.card-header.open .card-chevron { transform: rotate(180deg); }
+
+.card-body { display: none; }
+.card-body.open { display: block; }
+
+/* ── EMAIL ITEMS ────────────────────────────────────────── */
+.email-item {
+  padding: 11px 16px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  transition: background 0.1s;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px 12px;
+}
+.email-item:last-child { border-bottom: none; }
+.email-item:hover { background: var(--bg3); }
+.email-item.unread .ei-subject { font-weight: 500; }
+
+.ei-subject { font-size: 13px; color: var(--text); }
+.ei-from { font-size: 11.5px; color: var(--text2); grid-row: 2; }
+.ei-snippet { font-size: 11.5px; color: var(--text3); grid-row: 3; grid-column: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ei-time { font-family: var(--mono); font-size: 10.5px; color: var(--text3); grid-row: 1; text-align: right; }
+.ei-unread-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--blue); grid-row: 2; justify-self: end; align-self: center; }
+
+/* ── JOB ITEMS ──────────────────────────────────────────── */
+.job-search-bar {
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  gap: 6px;
+  background: var(--bg3);
+}
+
+#job-keyword, #job-location {
+  flex: 1;
+  border: 1px solid var(--border);
+  background: var(--bg2);
+  border-radius: var(--radius-sm);
+  padding: 6px 10px;
+  font-family: var(--font);
+  font-size: 12.5px;
+  color: var(--text);
+  outline: none;
+}
+#job-keyword:focus, #job-location:focus { border-color: var(--text3); }
+
+.job-item {
+  padding: 11px 16px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  transition: background 0.1s;
+}
+.job-item:last-child { border-bottom: none; }
+.job-item:hover { background: var(--bg3); }
+.ji-title { font-size: 13px; font-weight: 500; color: var(--text); }
+.ji-meta { font-size: 11.5px; color: var(--text2); margin-top: 2px; }
+.ji-tags { display: flex; gap: 5px; margin-top: 5px; flex-wrap: wrap; }
+.ji-tag {
+  font-size: 10.5px;
+  font-family: var(--mono);
+  padding: 1px 7px;
+  border-radius: 4px;
+  border: 1px solid var(--border2);
+  color: var(--text2);
+  background: var(--bg);
+}
+.ji-tag.indeed { color: #003a9b; border-color: #bfcfef; background: #eff4ff; }
+.ji-tag.naukri { color: #7c2d12; border-color: #fca99a; background: #fff5f3; }
+.ji-tag.salary { color: var(--green); border-color: #bbf7d0; background: var(--green-light); }
+
+/* ── CALENDAR ITEMS ─────────────────────────────────────── */
+.cal-item {
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+.cal-item:last-child { border-bottom: none; }
+.cal-time { font-family: var(--mono); font-size: 11px; color: var(--text3); min-width: 56px; padding-top: 2px; }
+.cal-title { font-size: 13px; color: var(--text); }
+.cal-loc { font-size: 11.5px; color: var(--text3); margin-top: 1px; }
+
+/* ── RIGHT PANEL ────────────────────────────────────────── */
+#right { display: flex; flex-direction: column; gap: 16px; }
+
+/* ── TASKS ──────────────────────────────────────────────── */
+.task-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--border);
+  transition: background 0.1s;
+}
+.task-item:last-child { border-bottom: none; }
+.task-item:hover { background: var(--bg3); }
+
+.task-check {
+  width: 16px; height: 16px;
+  border: 1.5px solid var(--border2);
+  border-radius: 4px;
+  flex-shrink: 0;
+  margin-top: 1px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+.task-check:hover { border-color: var(--text3); }
+.task-check.done { background: var(--text); border-color: var(--text); }
+.task-check.done::after {
+  content: '';
+  width: 4px; height: 7px;
+  border-right: 1.5px solid white;
+  border-bottom: 1.5px solid white;
+  transform: rotate(40deg) translate(-1px, -1px);
+}
+
+.task-text { font-size: 13px; color: var(--text); flex: 1; line-height: 1.4; }
+.task-text.done { color: var(--text3); text-decoration: line-through; }
+
+.add-task-row {
+  display: flex;
+  gap: 6px;
+  padding: 8px 12px;
+  border-top: 1px solid var(--border);
+}
+#new-task {
+  flex: 1;
+  border: 1px solid var(--border);
+  background: var(--bg3);
+  border-radius: var(--radius-sm);
+  padding: 6px 10px;
+  font-family: var(--font);
+  font-size: 12.5px;
+  color: var(--text);
+  outline: none;
+}
+#new-task:focus { border-color: var(--text3); background: var(--bg2); }
+#new-task::placeholder { color: var(--text3); }
+.add-btn {
+  width: 30px; height: 30px;
+  display: flex; align-items: center; justify-content: center;
+  border: 1px solid var(--border2);
+  border-radius: var(--radius-sm);
+  background: var(--bg2);
+  color: var(--text2);
+  cursor: pointer;
+  font-size: 16px;
+  transition: all 0.15s;
+}
+.add-btn:hover { background: var(--text); color: white; border-color: var(--text); }
+
+/* ── INTELLIGENCE FEED ──────────────────────────────────── */
+.news-item {
+  padding: 9px 16px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  transition: background 0.1s;
+}
+.news-item:last-child { border-bottom: none; }
+.news-item:hover { background: var(--bg3); }
+.ni-title { font-size: 12.5px; color: var(--text); line-height: 1.4; }
+.ni-source { font-family: var(--mono); font-size: 10px; color: var(--text3); margin-top: 2px; letter-spacing: 0.03em; }
+
+/* ── STATS ROW ──────────────────────────────────────────── */
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+
+.stat {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  box-shadow: var(--shadow);
+}
+.stat-label { font-size: 10.5px; font-family: var(--mono); color: var(--text3); letter-spacing: 0.04em; margin-bottom: 4px; }
+.stat-value { font-size: 22px; font-weight: 300; color: var(--text); line-height: 1; }
+.stat-sub { font-size: 10.5px; color: var(--text3); margin-top: 2px; }
+
+/* ── SETTINGS MODAL ─────────────────────────────────────── */
+#overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.3);
+  z-index: 500;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(4px);
+}
+#overlay.open { display: flex; }
+
+#settings-modal {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: var(--shadow-lg);
+  width: 460px;
+  max-width: 95vw;
+  padding: 24px;
+  position: relative;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.modal-title { font-size: 15px; font-weight: 500; margin-bottom: 20px; }
+.modal-close {
+  position: absolute; top: 16px; right: 16px;
+  background: var(--bg3); border: none; border-radius: 50%;
+  width: 28px; height: 28px; cursor: pointer; font-size: 16px;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text2); transition: all 0.15s;
+}
+.modal-close:hover { background: var(--bg4); color: var(--text); }
+
+.form-group { margin-bottom: 14px; }
+.form-label { font-size: 11px; font-family: var(--mono); color: var(--text3); letter-spacing: 0.04em; display: block; margin-bottom: 5px; }
+.form-input {
+  width: 100%;
+  border: 1px solid var(--border);
+  background: var(--bg3);
+  border-radius: var(--radius-sm);
+  padding: 8px 11px;
+  font-family: var(--font);
+  font-size: 13px;
+  color: var(--text);
+  outline: none;
+  transition: border-color 0.15s;
+}
+.form-input:focus { border-color: var(--text3); background: var(--bg2); }
+.form-hint { font-size: 11px; color: var(--text3); margin-top: 4px; }
+
+.modal-divider { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
+.modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px; }
+
+/* ── EMPTY STATE ────────────────────────────────────────── */
+.empty {
+  padding: 24px 16px;
+  text-align: center;
+  color: var(--text3);
+  font-size: 12.5px;
+}
+
+/* ── ANIMATIONS ─────────────────────────────────────────── */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.loading { animation: pulse 1.2s ease-in-out infinite; }
+
+/* ── SCROLLBAR ──────────────────────────────────────────── */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text3); }
+
+/* ── RESPONSIVE ─────────────────────────────────────────── */
+@media (max-width: 900px) {
+  #main { grid-template-columns: 1fr; padding: 12px; }
+  .stats-row { grid-template-columns: repeat(2, 1fr); }
+  .tabs { overflow-x: auto; }
+}
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div id="topbar">
+  <div class="tb-logo">JARVIS <span>/ executive assistant</span></div>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('chat')" id="tab-chat">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+      Chat
+    </button>
+    <button class="tab" onclick="switchTab('gmail')" id="tab-gmail">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+      Gmail
+      <span class="tab-badge blue" id="gmail-badge">—</span>
+    </button>
+    <button class="tab" onclick="switchTab('jobs')" id="tab-jobs">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/></svg>
+      Jobs
+      <span class="tab-badge" id="jobs-badge">—</span>
+    </button>
+    <button class="tab" onclick="switchTab('calendar')" id="tab-calendar">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      Calendar
+      <span class="tab-badge green" id="cal-badge">—</span>
+    </button>
+  </div>
+
+  <div class="tb-right">
+    <div class="tb-time" id="clock">—</div>
+    <button class="tb-settings" onclick="openSettings()">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+      Settings
+    </button>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div id="main">
+  <div id="left">
+
+    <!-- STATS -->
+    <div class="stats-row">
+      <div class="stat">
+        <div class="stat-label">INBOX</div>
+        <div class="stat-value" id="stat-inbox">—</div>
+        <div class="stat-sub">unread</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">CALENDAR</div>
+        <div class="stat-value" id="stat-cal">—</div>
+        <div class="stat-sub">today</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">JOBS</div>
+        <div class="stat-value" id="stat-jobs">—</div>
+        <div class="stat-sub">matches</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">TASKS</div>
+        <div class="stat-value" id="stat-tasks">0</div>
+        <div class="stat-sub">pending</div>
+      </div>
+    </div>
+
+    <!-- COMMAND BOX -->
+    <div id="cmd-box">
+      <div class="cmd-header">
+        <div class="cmd-label">// COMMAND</div>
+      </div>
+      <div class="cmd-row">
+        <input id="cmd-input" type="text" placeholder="Ask JARVIS anything... e.g. 'Reply to the last email from LinkedIn'" autocomplete="off" />
+        <div class="cmd-actions">
+          <button class="btn" id="mic-btn" onclick="toggleMic()" title="Voice input">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0014 0"/><line x1="12" y1="19" x2="12" y2="22"/></svg>
+          </button>
+          <button class="btn primary" onclick="handleCommand()">
+            Send
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="speak-toggle">
+        <input type="checkbox" id="speak-toggle" />
+        <label for="speak-toggle">Speak responses aloud</label>
+      </div>
+    </div>
+
+    <!-- RESPONSE FEED -->
+    <div id="response-feed">
+      <div class="msg">
+        <div class="msg-who jarvis">JARVIS</div>
+        <div class="msg-text" id="welcome-text">Initializing...</div>
+      </div>
+    </div>
+
+    <!-- TAB PANELS -->
+
+    <!-- CHAT TAB (quick actions) -->
+    <div class="tab-panel active" id="panel-chat">
+      <div class="card">
+        <div class="card-header" onclick="toggleCard(this)">
+          <div class="card-title">QUICK ACTIONS</div>
+          <svg class="card-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+        <div class="card-body">
+          <div style="padding:10px 16px;display:flex;flex-wrap:wrap;gap:6px;">
+            <button class="btn" onclick="quickCmd('Give me a morning briefing')">Morning briefing</button>
+            <button class="btn" onclick="quickCmd('Summarize my unread emails')">Summarize emails</button>
+            <button class="btn" onclick="quickCmd('What are my events today?')">Today\'s events</button>
+            <button class="btn" onclick="quickCmd('Show me latest job matches')">Job matches</button>
+            <button class="btn" onclick="quickCmd('Draft a follow-up email to my last sender')">Draft follow-up</button>
+            <button class="btn" onclick="quickCmd('What should I focus on right now?')">Focus mode</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- GMAIL TAB -->
+    <div class="tab-panel" id="panel-gmail">
+      <div class="card">
+        <div class="card-header open" onclick="toggleCard(this)">
+          <div class="card-title">
+            INBOX
+            <span class="card-count" id="email-count">—</span>
+          </div>
+          <svg class="card-chevron" style="transform:rotate(180deg)" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+        <div class="card-body open" id="email-list">
+          <div class="empty">Connect Gmail in Settings to load inbox.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- JOBS TAB -->
+    <div class="tab-panel" id="panel-jobs">
+      <div class="card">
+        <div class="card-header open" onclick="toggleCard(this)">
+          <div class="card-title">
+            JOB INTELLIGENCE
+            <span class="card-count" id="job-count">—</span>
+          </div>
+          <svg class="card-chevron" style="transform:rotate(180deg)" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+        <div class="card-body open">
+          <div class="job-search-bar">
+            <input id="job-keyword" type="text" placeholder="Role: Project Finance, Credit Appraisal..." />
+            <input id="job-location" type="text" placeholder="Location: India, Germany..." />
+            <button class="btn primary" onclick="searchJobs()" style="flex-shrink:0;">Search</button>
+          </div>
+          <div id="job-list">
+            <div class="empty">Add Apify key in Settings and click Search.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CALENDAR TAB -->
+    <div class="tab-panel" id="panel-calendar">
+      <div class="card">
+        <div class="card-header open" onclick="toggleCard(this)">
+          <div class="card-title">
+            TODAY'S SCHEDULE
+            <span class="card-count" id="cal-count">—</span>
+          </div>
+          <svg class="card-chevron" style="transform:rotate(180deg)" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+        <div class="card-body open" id="cal-list">
+          <div class="empty">Connect Google Calendar in Settings.</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <div id="right">
+
+    <!-- TASKS -->
+    <div class="card">
+      <div class="card-header open" onclick="toggleCard(this)">
+        <div class="card-title">TASKS</div>
+        <svg class="card-chevron" style="transform:rotate(180deg)" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <div class="card-body open">
+        <div id="task-list"></div>
+        <div class="add-task-row">
+          <input id="new-task" type="text" placeholder="Add task..." />
+          <button class="add-btn" onclick="addTask()">+</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- INTELLIGENCE FEED -->
+    <div class="card">
+      <div class="card-header" onclick="toggleCard(this)">
+        <div class="card-title">INTELLIGENCE FEED</div>
+        <svg class="card-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <div class="card-body" id="news-list">
+        <div class="news-item"><div class="ni-title">India on track for 500 GW renewable by 2030</div><div class="ni-source">ET ENERGY</div></div>
+        <div class="news-item"><div class="ni-title">Global energy investment set to exceed $3T in 2026</div><div class="ni-source">IEA</div></div>
+        <div class="news-item"><div class="ni-title">Green hydrogen finance gap narrowing at FID stage</div><div class="ni-source">S&P GLOBAL</div></div>
+        <div class="news-item"><div class="ni-title">RBI holds rates, flags broad growth recovery</div><div class="ni-source">MINT</div></div>
+        <div class="news-item"><div class="ni-title">NTPC, Adani lead next wave of green hydrogen</div><div class="ni-source">BLOOMBERG</div></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- SETTINGS MODAL -->
+<div id="overlay" onclick="closeOverlay(event)">
+  <div id="settings-modal">
+    <div class="modal-title">Settings</div>
+    <button class="modal-close" onclick="closeSettings()">×</button>
+
+    <div class="form-group">
+      <label class="form-label">YOUR NAME</label>
+      <input class="form-input" id="s-name" type="text" placeholder="Kanishk" />
+    </div>
+
+    <hr class="modal-divider">
+
+    <div class="form-group">
+      <label class="form-label">CLAUDE API KEY <span style="color:var(--blue);font-size:10px;">(Powers JARVIS intelligence)</span></label>
+      <input class="form-input" id="s-claude" type="password" placeholder="sk-ant-api03-..." />
+      <div class="form-hint">Get free key at console.anthropic.com → $5 credit included</div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">ELEVENLABS API KEY <span style="color:var(--text3);font-size:10px;">(optional — voice)</span></label>
+      <input class="form-input" id="s-eleven" type="password" placeholder="Your ElevenLabs key" />
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">APIFY API KEY <span style="color:var(--text3);font-size:10px;">(live job scraping)</span></label>
+      <input class="form-input" id="s-apify" type="password" placeholder="Your Apify key" />
+    </div>
+
+    <hr class="modal-divider">
+
+    <div class="form-group">
+      <label class="form-label">GOOGLE APPS SCRIPT URL <span style="color:var(--text3);font-size:10px;">(Gmail + Calendar)</span></label>
+      <input class="form-input" id="s-google" type="text" placeholder="https://script.google.com/macros/s/..." />
+      <button class="btn" style="margin-top:6px;width:100%;justify-content:center;" onclick="testGoogle()">Test Connection</button>
+      <div class="form-hint" id="google-status">Not connected.</div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn" onclick="closeSettings()">Cancel</button>
+      <button class="btn primary" onclick="saveSettings()">Save</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── MEMORY ────────────────────────────────────────────────
+const MEM = {
+  get: (k, d) => { try { return JSON.parse(localStorage.getItem('j2_'+k)) ?? d; } catch { return d; } },
+  set: (k, v) => localStorage.setItem('j2_'+k, JSON.stringify(v)),
+};
+
+let CONFIG = {
+  name:   MEM.get('name', 'Kanishk'),
+  claude: MEM.get('claude', ''),
+  eleven: MEM.get('eleven', ''),
+  apify:  MEM.get('apify', ''),
+  google: MEM.get('google', ''),
+};
+
+// ── BOOT ──────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', () => {
+  initClock();
+  renderTasks();
+  const hour = new Date().getHours();
+  const tod = hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening';
+  const msg = `Good ${tod}, ${CONFIG.name}. I'm ready. What do you need?`;
+  document.getElementById('welcome-text').textContent = msg;
+  if (CONFIG.google) { loadEmails(); loadCalendar(); }
+  document.getElementById('job-keyword').value = MEM.get('job_keyword', 'Project Finance');
+  document.getElementById('job-location').value = MEM.get('job_location', 'India');
+  updateTaskCount();
+});
+
+// ── CLOCK ─────────────────────────────────────────────────
+function initClock() {
+  function tick() {
+    const n = new Date();
+    const d = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    const m = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    let h = n.getHours(), mi = n.getMinutes().toString().padStart(2,'0');
+    const ap = h >= 12 ? 'PM' : 'AM'; h = h%12||12;
+    document.getElementById('clock').textContent = `${h}:${mi} ${ap} · ${d[n.getDay()]} ${n.getDate()} ${m[n.getMonth()]}`;
+  }
+  tick(); setInterval(tick, 1000);
+}
+
+// ── TABS ──────────────────────────────────────────────────
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  document.getElementById('panel-'+name).classList.add('active');
+}
+
+// ── CARD TOGGLE ───────────────────────────────────────────
+function toggleCard(header) {
+  header.classList.toggle('open');
+  const body = header.nextElementSibling;
+  body.classList.toggle('open');
+  const chevron = header.querySelector('.card-chevron');
+  chevron.style.transform = body.classList.contains('open') ? 'rotate(180deg)' : '';
+}
+
+// ── VOICE ENGINE ──────────────────────────────────────────
+let synth = window.speechSynthesis;
+let voiceObj = null;
+
+function loadVoice() {
+  const voices = synth.getVoices();
+  voiceObj = voices.find(v => v.name === 'Google UK English Male')
+    || voices.find(v => v.lang === 'en-GB')
+    || voices.find(v => v.lang.startsWith('en'))
+    || voices[0];
+}
+if (synth.onvoiceschanged !== undefined) synth.onvoiceschanged = loadVoice;
+loadVoice();
+
+function speak(text) {
+  if (!document.getElementById('speak-toggle').checked) return;
+  if (CONFIG.eleven) {
+    fetch('/.netlify/functions/tts', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ text })
+    }).then(r => r.blob()).then(blob => {
+      const url = URL.createObjectURL(blob);
+      const a = new Audio(url);
+      a.onended = () => URL.revokeObjectURL(url);
+      a.play();
+    }).catch(() => speakBrowser(text));
+  } else {
+    speakBrowser(text);
+  }
+}
+
+function speakBrowser(text) {
+  synth.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.voice = voiceObj; u.rate = 0.92; u.pitch = 0.85;
+  synth.speak(u);
+}
+
+// ── MIC ───────────────────────────────────────────────────
+let listening = false, recognition = null;
+
+function toggleMic() {
+  const btn = document.getElementById('mic-btn');
+  if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
+    addMsg('JARVIS', 'Voice input requires Chrome or Edge.');
+    return;
+  }
+  if (listening) {
+    recognition?.stop(); listening = false;
+    btn.classList.remove('listening'); return;
+  }
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  recognition = new SR();
+  recognition.lang = 'en-IN'; recognition.interimResults = false;
+  recognition.onstart = () => { listening = true; btn.classList.add('listening'); };
+  recognition.onresult = e => {
+    document.getElementById('cmd-input').value = e.results[0][0].transcript;
+    listening = false; btn.classList.remove('listening');
+    handleCommand();
+  };
+  recognition.onerror = recognition.onend = () => { listening = false; btn.classList.remove('listening'); };
+  recognition.start();
+}
+
+// ── COMMAND ───────────────────────────────────────────────
+document.getElementById('cmd-input').addEventListener('keydown', e => { if (e.key === 'Enter') handleCommand(); });
+document.getElementById('new-task').addEventListener('keydown', e => { if (e.key === 'Enter') addTask(); });
+
+function quickCmd(text) {
+  document.getElementById('cmd-input').value = text;
+  handleCommand();
+}
+
+async function handleCommand() {
+  const input = document.getElementById('cmd-input');
+  const raw = input.value.trim();
+  if (!raw) return;
+  input.value = '';
+  addMsg('YOU', raw);
+
+  if (!CONFIG.claude) {
+    const r = addMsg('JARVIS', 'No Claude API key configured. Open Settings → add your Anthropic API key to enable AI.', 'thinking');
+    return;
+  }
+
+  const thinking = addMsg('JARVIS', 'Thinking...', 'thinking');
+
+  try {
+    const reply = await callClaude(raw);
+    thinking.textContent = reply;
+    thinking.classList.remove('thinking');
+    speak(reply);
+  } catch(e) {
+    thinking.textContent = `Error: ${e.message}`;
+    thinking.classList.remove('thinking');
+  }
+}
+
+function buildContext() {
+  const tasks = MEM.get('tasks', []).filter(t => !t.done).map(t => t.text).join(', ') || 'none';
+  const emails = MEM.get('email_context', '');
+  const hour = new Date().getHours();
+  return `You are JARVIS, a precise AI executive assistant for ${CONFIG.name}, a finance professional specialising in project finance and renewable energy in India.
+Current time: ${document.getElementById('clock').textContent}.
+Pending tasks: ${tasks}.
+${emails ? 'Recent emails context: ' + emails : ''}
+Rules:
+- Be concise and direct. 2-3 sentences max unless a list is needed.
+- No preamble. Get to the point immediately.
+- For email drafts: provide subject line + body.
+- For replies: read the context and draft accordingly.
+- Tone: professional, calm, efficient.
+- If asked to reply to an email, use the email context provided and draft a professional reply.`;
+}
+
+async function callClaude(userMsg) {
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': CONFIG.claude,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-ipc': 'true'
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 600,
+      system: buildContext(),
+      messages: [{ role: 'user', content: userMsg }]
+    })
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error?.message || `API ${res.status}`);
+  }
+  const data = await res.json();
+  return data.content?.[0]?.text || 'No response.';
+}
+
+// ── RESPONSE FEED ─────────────────────────────────────────
+function addMsg(who, text, extraClass) {
+  const feed = document.getElementById('response-feed');
+  const line = document.createElement('div');
+  line.className = 'msg';
+  const w = document.createElement('div');
+  w.className = `msg-who ${who === 'JARVIS' ? 'jarvis' : ''}`;
+  w.textContent = who;
+  const t = document.createElement('div');
+  t.className = `msg-text ${extraClass || ''}`;
+  t.textContent = text;
+  line.appendChild(w); line.appendChild(t);
+  // Remove welcome message if it's still there
+  const welcome = feed.querySelector('#welcome-text');
+  if (welcome && feed.children.length === 1) feed.innerHTML = '';
+  feed.appendChild(line);
+  feed.scrollTop = feed.scrollHeight;
+  return t;
+}
+
+// ── GOOGLE CONNECTOR ──────────────────────────────────────
+async function googleCall(action, params = {}) {
+  const qs = new URLSearchParams({ action, ...params }).toString();
+  const res = await fetch(`/.netlify/functions/google?${qs}`);
+  if (!res.ok) throw new Error(`Proxy error: ${res.status}`);
+  return await res.json();
+}
+
+async function loadEmails() {
+  try {
+    const data = await googleCall('getEmails', { count: 10 });
+    if (!data || data.error) throw new Error(data?.error || 'Failed');
+    renderEmails(data);
+  } catch(e) {
+    document.getElementById('email-list').innerHTML = `<div class="empty">${e.message}</div>`;
+  }
+}
+
+function renderEmails(data) {
+  const list = document.getElementById('email-list');
+  list.innerHTML = '';
+  if (!data.emails?.length) { list.innerHTML = '<div class="empty">Inbox clear.</div>'; return; }
+
+  // Store email context for AI replies
+  const ctx = data.emails.slice(0, 3).map(e => `From: ${e.from} | Subject: ${e.subject} | ${e.snippet?.substring(0,100)}`).join('\n');
+  MEM.set('email_context', ctx);
+
+  data.emails.forEach(email => {
+    const from = email.from.replace(/<.*>/, '').trim() || email.from;
+    const time = new Date(email.date).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+    const item = document.createElement('div');
+    item.className = `email-item ${email.isUnread ? 'unread' : ''}`;
+    item.onclick = () => quickCmd(`Reply to this email — From: ${from}, Subject: ${email.subject}. Draft a professional reply.`);
+    item.innerHTML = `
+      <div class="ei-subject">${email.subject || '(no subject)'}</div>
+      <div class="ei-time">${time}</div>
+      <div class="ei-from">${from}</div>
+      ${email.isUnread ? '<div class="ei-unread-dot"></div>' : '<div></div>'}
+      <div class="ei-snippet">${email.snippet || ''}</div>
+    `;
+    list.appendChild(item);
+  });
+
+  const unread = data.unread || 0;
+  document.getElementById('email-count').textContent = unread;
+  document.getElementById('gmail-badge').textContent = unread;
+  document.getElementById('stat-inbox').textContent = unread;
+}
+
+async function loadCalendar() {
+  try {
+    const data = await googleCall('getCalendar', { days: 1 });
+    if (!data || data.error) throw new Error(data?.error || 'Failed');
+    renderCalendar(data);
+  } catch(e) {
+    document.getElementById('cal-list').innerHTML = `<div class="empty">${e.message}</div>`;
+  }
+}
+
+function renderCalendar(data) {
+  const list = document.getElementById('cal-list');
+  list.innerHTML = '';
+  if (!data.events?.length) { list.innerHTML = '<div class="empty">No events today.</div>'; return; }
+  data.events.forEach(ev => {
+    const start = ev.isAllDay ? 'All day' : new Date(ev.start).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+    const item = document.createElement('div');
+    item.className = 'cal-item';
+    item.innerHTML = `
+      <div class="cal-time">${start}</div>
+      <div>
+        <div class="cal-title">${ev.title}</div>
+        ${ev.location ? `<div class="cal-loc">${ev.location}</div>` : ''}
+      </div>
+    `;
+    list.appendChild(item);
+  });
+  document.getElementById('cal-count').textContent = data.total;
+  document.getElementById('cal-badge').textContent = data.total;
+  document.getElementById('stat-cal').textContent = data.total;
+}
+
+// ── JOBS ──────────────────────────────────────────────────
+async function searchJobs() {
+  const keyword = document.getElementById('job-keyword').value.trim() || 'Project Finance';
+  const location = document.getElementById('job-location').value.trim() || 'India';
+  MEM.set('job_keyword', keyword);
+  MEM.set('job_location', location);
+
+  const list = document.getElementById('job-list');
+  list.innerHTML = '<div class="empty loading">Scanning live jobs...</div>';
+
+  if (!CONFIG.apify) {
+    list.innerHTML = '<div class="empty">Add Apify API key in Settings to search live jobs.</div>';
+    return;
+  }
+
+  // Clear jobs cache to force fresh search
+  MEM.set('jobs_cache', null);
+  MEM.set('jobs_cache_time', 0);
+
+  try {
+    const res = await fetch(`/.netlify/functions/jobs?keyword=${encodeURIComponent(keyword)}&location=${encodeURIComponent(location)}`);
+    if (!res.ok) throw new Error(`${res.status}`);
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    renderJobs(data, keyword, location);
+  } catch(e) {
+    list.innerHTML = `<div class="empty">Error: ${e.message}</div>`;
+  }
+}
+
+function renderJobs(data, keyword, location) {
+  const list = document.getElementById('job-list');
+  list.innerHTML = '';
+
+  if (!data.jobs?.length) {
+    list.innerHTML = `<div class="empty">No jobs found for "${keyword}" in ${location}.</div>`;
+    return;
+  }
+
+  data.jobs.forEach(job => {
+    const item = document.createElement('div');
+    item.className = 'job-item';
+    item.onclick = () => job.url !== '#' && window.open(job.url, '_blank');
+    const posted = job.postedAt ? new Date(job.postedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : '';
+    item.innerHTML = `
+      <div class="ji-title">${job.title}</div>
+      <div class="ji-meta">${job.company} · ${job.location}${posted ? ' · ' + posted : ''}</div>
+      <div class="ji-tags">
+        <span class="ji-tag ${job.source?.toLowerCase()}">${job.source || 'JOB'}</span>
+        ${job.salary ? `<span class="ji-tag salary">${job.salary}</span>` : ''}
+        ${job.experience ? `<span class="ji-tag">${job.experience}</span>` : ''}
+        ${job.type ? `<span class="ji-tag">${job.type}</span>` : ''}
+      </div>
+    `;
+    list.appendChild(item);
+  });
+
+  document.getElementById('job-count').textContent = data.total;
+  document.getElementById('jobs-badge').textContent = data.total;
+  document.getElementById('stat-jobs').textContent = data.total;
+}
+
+// ── TASKS ─────────────────────────────────────────────────
+function renderTasks() {
+  const tasks = MEM.get('tasks', [
+    { id: 1, text: 'Review AVP role at GE Vernova', done: false },
+    { id: 2, text: 'Update LinkedIn profile headline', done: false },
+    { id: 3, text: 'Prep questions for EY interview', done: false },
+  ]);
+  MEM.set('tasks', tasks);
+  const list = document.getElementById('task-list');
+  list.innerHTML = '';
+  tasks.forEach(t => {
+    const item = document.createElement('div');
+    item.className = 'task-item';
+    item.innerHTML = `
+      <div class="task-check ${t.done ? 'done' : ''}" onclick="toggleTask(${t.id})"></div>
+      <div class="task-text ${t.done ? 'done' : ''}">${t.text}</div>
+    `;
+    list.appendChild(item);
+  });
+  updateTaskCount();
+}
+
+function toggleTask(id) {
+  const tasks = MEM.get('tasks', []);
+  const t = tasks.find(t => t.id === id);
+  if (t) { t.done = !t.done; MEM.set('tasks', tasks); renderTasks(); }
+}
+
+function addTask() {
+  const input = document.getElementById('new-task');
+  const text = input.value.trim();
+  if (!text) return;
+  const tasks = MEM.get('tasks', []);
+  tasks.push({ id: Date.now(), text, done: false });
+  MEM.set('tasks', tasks);
+  input.value = '';
+  renderTasks();
+}
+
+function updateTaskCount() {
+  const pending = MEM.get('tasks', []).filter(t => !t.done).length;
+  document.getElementById('stat-tasks').textContent = pending;
+}
+
+// ── SETTINGS ──────────────────────────────────────────────
+function openSettings() {
+  document.getElementById('s-name').value = CONFIG.name;
+  document.getElementById('s-claude').value = CONFIG.claude;
+  document.getElementById('s-eleven').value = CONFIG.eleven;
+  document.getElementById('s-apify').value = CONFIG.apify;
+  document.getElementById('s-google').value = CONFIG.google;
+  document.getElementById('overlay').classList.add('open');
+}
+
+function closeSettings() { document.getElementById('overlay').classList.remove('open'); }
+function closeOverlay(e) { if (e.target === document.getElementById('overlay')) closeSettings(); }
+
+function saveSettings() {
+  CONFIG.name   = document.getElementById('s-name').value.trim() || 'Kanishk';
+  CONFIG.claude = document.getElementById('s-claude').value.trim();
+  CONFIG.eleven = document.getElementById('s-eleven').value.trim();
+  CONFIG.apify  = document.getElementById('s-apify').value.trim();
+  CONFIG.google = document.getElementById('s-google').value.trim();
+  Object.entries(CONFIG).forEach(([k,v]) => MEM.set(k,v));
+  closeSettings();
+  // Reload data
+  if (CONFIG.google) { loadEmails(); loadCalendar(); }
+  const welcomeEl = document.getElementById('welcome-text');
+  if (welcomeEl) welcomeEl.textContent = `Configuration saved. Ready, ${CONFIG.name}.`;
+}
+
+async function testGoogle() {
+  const url = document.getElementById('s-google').value.trim();
+  if (!url) { document.getElementById('google-status').textContent = 'Enter a URL first.'; return; }
+  CONFIG.google = url; MEM.set('google', url);
+  document.getElementById('google-status').textContent = 'Testing...';
+  try {
+    const qs = new URLSearchParams({ action: 'ping' }).toString();
+    const res = await fetch(`/.netlify/functions/google?${qs}`);
+    const data = await res.json();
+    document.getElementById('google-status').textContent = data.status === 'ok' ? '✓ Connected — ' + data.message : 'Error: ' + (data.error || 'Unknown');
+  } catch(e) {
+    document.getElementById('google-status').textContent = 'Failed: ' + e.message;
+  }
+}
+</script>
+</body>
+</html>
