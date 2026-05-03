@@ -943,19 +943,7 @@ loadVoice();
 
 function speak(text) {
   if (!document.getElementById('speak-toggle').checked) return;
-  if (CONFIG.eleven) {
-    fetch('/.netlify/functions/tts', {
-      method: 'POST', headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ text })
-    }).then(r => r.blob()).then(blob => {
-      const url = URL.createObjectURL(blob);
-      const a = new Audio(url);
-      a.onended = () => URL.revokeObjectURL(url);
-      a.play();
-    }).catch(() => speakBrowser(text));
-  } else {
-    speakBrowser(text);
-  }
+  speakBrowser(text);
 }
 
 function speakBrowser(text) {
@@ -1088,9 +1076,10 @@ function addMsg(who, text, extraClass) {
 
 // ── GOOGLE CONNECTOR ──────────────────────────────────────
 async function googleCall(action, params = {}) {
+  if (!CONFIG.google) return null;
   const qs = new URLSearchParams({ action, ...params }).toString();
-  const res = await fetch(`/.netlify/functions/google?${qs}`);
-  if (!res.ok) throw new Error(`Proxy error: ${res.status}`);
+  const res = await fetch(`${CONFIG.google}?${qs}`);
+  if (!res.ok) throw new Error(`Google error: ${res.status}`);
   return await res.json();
 }
 
@@ -1187,14 +1176,83 @@ async function searchJobs() {
   MEM.set('jobs_cache_time', 0);
 
   try {
-    const res = await fetch(`/.netlify/functions/jobs?keyword=${encodeURIComponent(keyword)}&location=${encodeURIComponent(location)}`);
-    if (!res.ok) throw new Error(`${res.status}`);
-    const data = await res.json();
-    if (data.error) throw new Error(data.error);
+    const data = await scrapeJobsDirect(keyword, location, CONFIG.apify);
     renderJobs(data, keyword, location);
   } catch(e) {
     list.innerHTML = `<div class="empty">Error: ${e.message}</div>`;
   }
+}
+
+async function scrapeJobsDirect(keyword, location, apiKey) {
+  const country = location.toLowerCase().includes('india') ? 'IN'
+    : location.toLowerCase().includes('germany') ? 'DE'
+    : location.toLowerCase().includes('uk') ? 'GB'
+    : location.toLowerCase().includes('usa') || location.toLowerCase().includes('united states') ? 'US'
+    : location.toLowerCase().includes('singapore') ? 'SG' : 'IN';
+
+  const allJobs = [];
+
+  // Indeed - works globally
+  try {
+    const url = `https://api.apify.com/v2/acts/misceres~indeed-scraper/run-sync-get-dataset-items?token=${apiKey}&timeout=55&memory=256`;
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ position: keyword, country, location, maxItems: 6 })
+    });
+    if (res.ok) {
+      const items = await res.json();
+      if (Array.isArray(items)) {
+        items.forEach(item => allJobs.push({
+          title: item.positionName || '',
+          company: item.company || '',
+          location: item.location || location,
+          url: item.url || '#',
+          postedAt: item.postingDateParsed || '',
+          type: Array.isArray(item.jobType) ? item.jobType[0] : 'Full-time',
+          salary: item.salary || '',
+          source: 'Indeed',
+        }));
+      }
+    }
+  } catch(e) { console.error('Indeed:', e.message); }
+
+  // Naukri - India only
+  if (country === 'IN') {
+    try {
+      const url = `https://api.apify.com/v2/acts/muhammetakkurtt~naukri-job-scraper/run-sync-get-dataset-items?token=${apiKey}&timeout=55&memory=256`;
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ keyword, location: 'India', maxJobs: 50 })
+      });
+      if (res.ok) {
+        const items = await res.json();
+        if (Array.isArray(items)) {
+          items.slice(0, 6).forEach(item => allJobs.push({
+            title: item.title || '',
+            company: item.companyName || '',
+            location: item.location || 'India',
+            url: item.jdURL || '#',
+            postedAt: item.createdDate || '',
+            type: 'Full-time',
+            salary: item.salary !== 'Not disclosed' ? item.salary : '',
+            experience: item.experienceText || '',
+            source: 'Naukri',
+          }));
+        }
+      }
+    } catch(e) { console.error('Naukri:', e.message); }
+  }
+
+  const seen = new Set();
+  const unique = allJobs.filter(j => {
+    const key = j.url || j.title + j.company;
+    if (seen.has(key)) return false;
+    seen.add(key); return true;
+  }).filter(j => j.title);
+
+  return { jobs: unique, total: unique.length, updated: new Date().toISOString() };
 }
 
 function renderJobs(data, keyword, location) {
@@ -1270,50 +1328,4 @@ function addTask() {
 
 function updateTaskCount() {
   const pending = MEM.get('tasks', []).filter(t => !t.done).length;
-  document.getElementById('stat-tasks').textContent = pending;
-}
-
-// ── SETTINGS ──────────────────────────────────────────────
-function openSettings() {
-  document.getElementById('s-name').value = CONFIG.name;
-  document.getElementById('s-claude').value = CONFIG.claude;
-  document.getElementById('s-eleven').value = CONFIG.eleven;
-  document.getElementById('s-apify').value = CONFIG.apify;
-  document.getElementById('s-google').value = CONFIG.google;
-  document.getElementById('overlay').classList.add('open');
-}
-
-function closeSettings() { document.getElementById('overlay').classList.remove('open'); }
-function closeOverlay(e) { if (e.target === document.getElementById('overlay')) closeSettings(); }
-
-function saveSettings() {
-  CONFIG.name   = document.getElementById('s-name').value.trim() || 'Kanishk';
-  CONFIG.claude = document.getElementById('s-claude').value.trim();
-  CONFIG.eleven = document.getElementById('s-eleven').value.trim();
-  CONFIG.apify  = document.getElementById('s-apify').value.trim();
-  CONFIG.google = document.getElementById('s-google').value.trim();
-  Object.entries(CONFIG).forEach(([k,v]) => MEM.set(k,v));
-  closeSettings();
-  // Reload data
-  if (CONFIG.google) { loadEmails(); loadCalendar(); }
-  const welcomeEl = document.getElementById('welcome-text');
-  if (welcomeEl) welcomeEl.textContent = `Configuration saved. Ready, ${CONFIG.name}.`;
-}
-
-async function testGoogle() {
-  const url = document.getElementById('s-google').value.trim();
-  if (!url) { document.getElementById('google-status').textContent = 'Enter a URL first.'; return; }
-  CONFIG.google = url; MEM.set('google', url);
-  document.getElementById('google-status').textContent = 'Testing...';
-  try {
-    const qs = new URLSearchParams({ action: 'ping' }).toString();
-    const res = await fetch(`/.netlify/functions/google?${qs}`);
-    const data = await res.json();
-    document.getElementById('google-status').textContent = data.status === 'ok' ? '✓ Connected — ' + data.message : 'Error: ' + (data.error || 'Unknown');
-  } catch(e) {
-    document.getElementById('google-status').textContent = 'Failed: ' + e.message;
-  }
-}
-</script>
-</body>
-</html>
+  document
